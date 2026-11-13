@@ -70,6 +70,8 @@ macOS runtime builds are not enabled yet.
 The runtime is installed in the user's application data directory, separately
 from `.venv`. Normal `uv sync` does not remove it. The app prefers this runtime
 on subsequent worker launches, including after retrying setup from Diagnostics.
+Rebuilding checks that the new runtime imports before switching to it, then
+removes runtimes from earlier builds.
 Changing Python minor versions requires rebuilding for that Python ABI.
 
 ## Default model
@@ -88,15 +90,13 @@ The download is pinned to conversion commit
 Downloads use a scratch file and are published only after verifying the exact
 size and SHA-256. Every reuse checks the cached file's integrity. Corrupt files
 are downloaded again; valid files work offline. No images are uploaded. The
-[Real-ESRGAN license](src/licenses/Real-ESRGAN.txt) is included
+[Real-ESRGAN license](src/entropy/licenses/Real-ESRGAN.txt) is included
 and copied alongside the downloaded model.
 
 On Linux, persistent files normally live under
-`~/.local/share/placeholder-upscaler/`: `models/` for weights and `runtimes/` for
-per-Python native packages. Entropy retains this original storage location and
-settings identity so existing models, GPU runtimes, and preferences remain available
-after the rename. XDG application-data overrides are respected.
-On Windows the same data lives under `%LOCALAPPDATA%\placeholder-upscaler\`.
+`~/.local/share/entropy/`: `models/` for weights and `runtimes/` for
+per-Python native packages. XDG application-data overrides are respected.
+On Windows the same data lives under `%LOCALAPPDATA%\entropy\`.
 
 ## Interface and native file selection
 
@@ -117,11 +117,31 @@ The PySide6 wheel includes the Qt portal plugin; the desktop needs a running
 `xdg-desktop-portal-kde` or `xdg-desktop-portal-gnome`. When native dialogs are
 unavailable Qt can use its QML fallback; a missing plugin is logged.
 
-`app.py` bootstraps the application; `controller.py` exposes typed properties and
-actions; `queue.py` supplies the list model. `qml/Main.qml` wires together focused
-components for the workspace, comparison, queue, settings, dialogs, and status.
-The `qml/components/` directory contains reusable controls and `Theme.qml` holds
-the color and typography tokens. Native inference remains in its own process.
+The `entropy` package, in `src/entropy`, is split by responsibility:
+
+- `core/` holds pure logic shared by both processes, with no Qt: the request
+  model, image tiling, model download, and the typed worker events.
+- `worker/` is the inference process: MNN loading and the batch runner.
+- `logic/` is the desktop process's state, using QtCore only: the `Session`
+  (queue, preferences, batch and setup lifecycle), the image list model, typed
+  settings, and the `WorkerHost` that runs and talks to the worker.
+- `ui/` is everything Qt Quick touches: the `AppController` view model, the
+  preview image provider, and the QML sources.
+
+`application.py` holds `Entropy`, which owns the settings, worker host, session
+and interface, and passes itself to each part. The session never calls into the
+interface; it emits signals that the view model forwards to QML.
+
+Native inference runs in a separate child process, so a crashing GPU driver
+cannot take the app down and a batch can be cancelled even inside a native call.
+The desktop app sends the batch request as JSON on the worker's stdin, and the
+worker reports one JSON event per line on stdout. MNN prints its own logs to
+the same stream, so event lines carry a prefix and all other output goes to the
+diagnostics panel. Both sides share the pydantic models in `core/events.py`.
+
+In `ui/qml/`, `Main.qml` wires together focused components for the workspace,
+comparison, queue, settings, dialogs, and status. The `components/` directory
+contains reusable controls and `Theme.qml` holds the color and typography tokens.
 
 ## Features and limits
 
@@ -253,12 +273,25 @@ flatpak install --user entropy-x86_64.flatpak
 
 ```bash
 uv sync --extra mnn
-uv run ruff check src scripts tests
-uv run ruff format --check src scripts tests
-uv run python scripts/check_qml.py --check
+uv run ruff check
+uv run ruff format --check
+uv run pyright
+uv run pyside6-project build
+uv run pyside6-qmllint -I . $(find "$PWD/src/entropy/ui/qml" -name '*.qml')
 uv run pytest -ra
 uv build
 ```
+
+Pyright runs in strict mode over `src`, `scripts` and `tests`. PySide6's bundled
+type stubs miss a few things, such as typed `Property` descriptors, so
+`typings/PySide6` holds patched copies that pyright reads first. Each patch is
+marked with a `# Patched:` comment. A stub there replaces the whole module, and
+the stubs import each other, so the folder holds every module the project imports
+plus everything those modules import in turn. After a PySide6 upgrade, copy the
+new stubs over these and reapply the marked patches. Read/write Qt properties use
+the explicit form,
+`outputScale = Property(float, _get, _set, notify=...)`, since strict pyright
+treats the `@x.setter` pattern as a redeclaration.
 
 Normal tests use generated models on CPU to check native tensor conversion,
 including packed layouts, plus download integrity/offline reuse, tiling, image
@@ -266,15 +299,21 @@ handling, file collisions, batch errors, Qt startup and process cancellation.
 They do not require network access. Native CPU tests explicitly skip if MNN
 cannot load.
 
-After changing Python properties exposed to QML, regenerate the checked-in
-tooling metadata and lint the components with `uv run python scripts/check_qml.py`.
-Add `--format` to apply `qmlformat`. These optional checks run locally;
-headless UI tests load light/dark themes, the compact layout and drawers.
+The controller registers itself as the `Entropy` QML module at runtime.
+`pyside6-project build` writes matching `qmldir` and `.qmltypes` files to the
+ignored `Entropy/` folder, so qmllint and the QML language server know its
+properties, signals and slots. Rebuild after changing anything the controller
+exposes to QML, then lint. Pass `-I .` to `pyside6-qmlls` for the same view in an
+editor. qmllint gets absolute paths because with relative ones it fails to match
+`Theme.qml` to its `qmldir` entry and wrongly warns that the singleton is
+undeclared. Format with
+`uv run pyside6-qmlformat -i -W 100 $(find src/entropy/ui/qml -name '*.qml')`.
+Headless UI tests load light/dark themes, the compact layout and drawers.
 
 To verify actual portal D-Bus requests in a Linux desktop session:
 
 ```bash
-UPSCALER_TEST_PORTAL=1 uv run pytest tests/test_portal.py -v
+ENTROPY_TEST_PORTAL=1 uv run pytest tests/test_portal.py -v
 ```
 
 This test opens and automatically dismisses all three native pickers. It checks
@@ -283,7 +322,7 @@ that each action sends exactly one portal request and needs `dbus-monitor`.
 Run the real default model with OpenCL acceleration:
 
 ```bash
-UPSCALER_TEST_GPU=1 uv run pytest tests/test_gpu.py -v
+ENTROPY_TEST_GPU=1 uv run pytest tests/test_gpu.py -v
 ```
 
 These tests require the GPU runtime and drivers, and install the pinned model if
@@ -304,4 +343,4 @@ one at https://mozilla.org/MPL/2.0/.
 Source code is available at https://github.com/jedace07/entropy; each release's
 tag identifies its corresponding source. Bundled third-party dependencies and
 the enhancement model retain their own licenses. The model's
-[Real-ESRGAN license](src/licenses/Real-ESRGAN.txt) is included separately.
+[Real-ESRGAN license](src/entropy/licenses/Real-ESRGAN.txt) is included separately.

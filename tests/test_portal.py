@@ -8,10 +8,12 @@ import pytest
 
 
 @pytest.mark.skipif(
-    os.environ.get("UPSCALER_TEST_PORTAL") != "1",
-    reason="Set UPSCALER_TEST_PORTAL=1 in a desktop session",
+    os.environ.get('ENTROPY_TEST_PORTAL') != '1',
+    reason='Set ENTROPY_TEST_PORTAL=1 in a desktop session',
 )
 def test_native_file_and_folder_portal_requests() -> None:
+    # Runs in a fresh interpreter, opening each picker in turn while
+    # dbus-monitor records the requests that reach the desktop portal
     script = r"""
 import subprocess
 from tempfile import TemporaryDirectory
@@ -19,9 +21,8 @@ from pathlib import Path
 from PySide6.QtCore import QSettings, QTimer, QObject, QMetaObject, Qt, Q_ARG
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQuickControls2 import QQuickStyle
-from src.dialogs import configure_file_portal
-from src.controller import AppController
-from src.app import create_engine
+from entropy.ui.dialogs import configure_file_portal
+from entropy.application import Entropy
 
 configure_file_portal()
 QQuickStyle.setStyle("Material")
@@ -30,12 +31,12 @@ monitor = subprocess.Popen([
     "type='method_call',interface='org.freedesktop.portal.FileChooser',member='OpenFile'"
 ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 try:
-    with TemporaryDirectory(prefix="upscaler-portal-test-") as directory:
+    with TemporaryDirectory(prefix="entropy-portal-test-") as directory:
         app = QGuiApplication([])
         settings = QSettings(str(Path(directory) / "settings.ini"), QSettings.Format.IniFormat)
-        controller = AppController(settings=settings, start_setup=False)
-        controller.outputDirectory = directory
-        engine = create_engine(controller)
+        entropy = Entropy(settings=settings, start_setup=False)
+        entropy.ui.controller.outputDirectory = directory
+        engine = entropy.ui.load()
         assert engine.rootObjects()
         window = engine.rootObjects()[0]
         pickers = window.findChild(QObject, "filePickers")
@@ -58,10 +59,17 @@ assert out.count('string "directory"') == 3, out
 assert out.count('variant             boolean true') >= 3, out
 print("Verified exactly three native portal requests: images, input folder, output folder.")
 """
+
     environment = os.environ.copy()
-    environment.update(QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software")
+    environment.update(QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software')
     result = subprocess.run(
-        [sys.executable, "-c", script], env=environment, text=True, capture_output=True, timeout=20
+        [sys.executable, '-c', script],
+        env=environment,
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
     )
+
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "TypeError" not in result.stderr, result.stderr
+    assert 'TypeError' not in result.stderr, result.stderr

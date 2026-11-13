@@ -1,0 +1,37 @@
+"""Per-user storage shared by the GUI, workers, and native build helper."""
+
+from __future__ import annotations
+
+import platform
+import sys
+from typing import TYPE_CHECKING
+
+from platformdirs import user_cache_path, user_data_path
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+APP_DIRECTORY = 'entropy'
+
+
+def is_compiled() -> bool:
+    """Whether this module is running inside the Nuitka application."""
+    return '__compiled__' in globals()
+
+
+def data_dir() -> Path:
+    """Return persistent application data without depending on Qt."""
+    return user_data_path(APP_DIRECTORY, appauthor=False)
+
+
+def cache_dir() -> Path:
+    """Return disposable cached data, such as native build trees."""
+    return user_cache_path(APP_DIRECTORY, appauthor=False)
+
+
+def runtime_root() -> Path:
+    """Keep native runtime installations separate for each Python ABI and platform."""
+    python = f'cp{sys.version_info.major}{sys.version_info.minor}'
+    tag = f'{python}-{sys.platform}-{platform.machine()}'
+
+    return data_dir() / 'runtimes' / tag

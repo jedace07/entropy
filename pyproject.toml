@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "entropy"
-version = "0.2.1a2"
+version = "0.3.0a1"
 description = "Entropy: a Qt Quick image upscaler powered by MNN with OpenCL and Metal backends"
 readme = "README.md"
 license = "MPL-2.0"

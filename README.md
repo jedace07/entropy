@@ -4,7 +4,7 @@ A PySide6 / Qt Quick desktop image upscaler using MNN with OpenCL and Metal back
 installs its default **Real-ESRGAN General 4×** enhancement model automatically.
 There is no model file picker or manual model configuration.
 
-The current prerelease is **v0.2.1-alpha.2** (`0.2.1a2` in Python package metadata).
+The current prerelease is **v0.3.0-alpha.1** (`0.3.0a1` in Python package metadata).
 
 The runtime automatically selects Metal on macOS and OpenCL on Linux and Windows;
 backend selection is internal. Metal is groundwork for future macOS support:
@@ -235,7 +235,8 @@ standalone mode), checks that the compiled application can load its workspace
 without downloading a model, then wraps it with Qt Installer Framework's `binarycreator`.
 Before publishing, it installs the package on Windows, checks the GUI's MNN worker
 handshake and the registered uninstall confirmation, verifies cancellation preserves
-the application, and confirms removal deletes the app and Windows Settings entry.
+the application, then uninstalls through the Start menu shortcut and checks that
+the installation directory, shortcut and Windows Settings entry are gone.
 The application starts without a console window and uses its own executable for
 isolated GPU workers. It reads the bundled model from its installation directory
 and keeps user preferences and cached data in the existing per-user locations.

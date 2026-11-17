@@ -9,6 +9,6 @@ Component.prototype.createOperations = function() {
         "@DesktopDir@/Entropy.lnk", "workingDirectory=@TargetDir@/app",
         "iconPath=@TargetDir@/app/Entropy.ico", "description=Entropy image upscaler");
     component.addOperation("CreateShortcut", "@TargetDir@/EntropyMaintenanceTool.exe",
-        "@StartMenuDir@/Uninstall Entropy.lnk", "workingDirectory=@TargetDir@",
-        "arguments=--start-uninstaller", "description=Uninstall Entropy");
+        "@StartMenuDir@/Uninstall Entropy.lnk", "--start-uninstaller",
+        "workingDirectory=@TargetDir@", "description=Uninstall Entropy");
 };

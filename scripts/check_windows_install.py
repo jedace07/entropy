@@ -134,28 +134,30 @@ def registered_uninstaller(target: Path) -> str | None:
     return None
 
 
+def wait_for_button(script: Path, button: str, *, timeout: int = 30) -> None:
+    """Wait for the uninstall wizard to reach the expected page."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        controls = inspect_ui(script, 'EntropyMaintenanceTool')
+        if any(item['Name'].replace('&', '') == button for item in controls):
+            return
+        time.sleep(1)
+
+    msg = f'Uninstall wizard did not show its {button!r} button.'
+    raise RuntimeError(msg)
+
+
 def check_uninstall_confirmation(target: Path, script: Path) -> None:
     """Launch the registered uninstaller through the shell, then cancel removal."""
     maintenance = target / 'EntropyMaintenanceTool.exe'
-
     command = registered_uninstaller(target)
     if command is None or command.strip('"').casefold() != str(maintenance).casefold():
         msg = f'Incorrect Windows Settings uninstall command: {command}'
         raise RuntimeError(msg)
     print(f'Windows Settings uninstall command: {command}', flush=True)
 
-    # Going through the shell is the point: it is how Windows Settings launches it
     os.startfile(str(maintenance), cwd=str(Path(os.environ['WINDIR']) / 'System32'))  # ruff: ignore[start-process-with-no-shell]
-
-    deadline = time.monotonic() + 30
-    while time.monotonic() < deadline:
-        controls = inspect_ui(script, 'EntropyMaintenanceTool')
-        if any(item['Name'].replace('&', '') == 'Uninstall' for item in controls):
-            break
-        time.sleep(1)
-    else:
-        msg = 'Registered uninstaller did not show its removal confirmation.'
-        raise RuntimeError(msg)
+    wait_for_button(script, 'Uninstall')
 
     # Cancel asks whether to quit, and Yes closes the tool without removing anything
     inspect_ui(script, 'EntropyMaintenanceTool', 'Cancel')
@@ -170,6 +172,28 @@ def check_uninstall_confirmation(target: Path, script: Path) -> None:
         raise RuntimeError(msg)
 
     print('Uninstall confirmation and cancellation passed.', flush=True)
+
+
+def check_shortcut_removal(target: Path, script: Path) -> None:
+    """Remove the installed app through its actual Start menu shortcut."""
+    programs = run(
+        ['powershell', '-NoProfile', '-Command', "[Environment]::GetFolderPath('Programs')"]
+    )
+    shortcut = Path(programs.stdout.strip()) / 'Entropy' / 'Uninstall Entropy.lnk'
+    os.startfile(shortcut)  # ruff: ignore[start-process-with-no-shell]
+    wait_for_button(script, 'Uninstall')
+    inspect_ui(script, 'EntropyMaintenanceTool', 'Uninstall')
+    wait_for_button(script, 'Finish', timeout=120)
+    inspect_ui(script, 'EntropyMaintenanceTool', 'Finish')
+
+    # Windows removes the running maintenance executable after the wizard exits
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        if not target.exists() and not shortcut.exists() and registered_uninstaller(target) is None:
+            return
+        time.sleep(0.5)
+    msg = 'Confirmed uninstall left the installation directory, shortcut or Windows Settings entry.'
+    raise RuntimeError(msg)
 
 
 def main() -> int:
@@ -202,34 +226,24 @@ def main() -> int:
         for check in (
             lambda: check_worker(target / 'app' / 'Entropy.exe', script, root / 'application.log'),
             lambda: check_uninstall_confirmation(target, script),
+            lambda: check_shortcut_removal(target, script),
         ):
             try:
                 check()
-            except (RuntimeError, subprocess.SubprocessError) as exc:
+            except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
                 failures.append(str(exc))
                 print(f'FAILED: {exc}', flush=True)
 
-        # A failed GUI check can leave the maintenance tool open and its files locked
-        run(
-            [
-                'powershell',
-                '-NoProfile',
-                '-Command',
-                (
-                    '$entropyProcesses = @(Get-Process EntropyMaintenanceTool '
-                    '-ErrorAction SilentlyContinue); '
-                    'foreach ($entropyProcess in $entropyProcesses) { '
-                    'Stop-Process -Id $entropyProcess.Id -ErrorAction Stop }; exit 0'
-                ),
-            ]
-        )
-
-        run([str(target / 'EntropyMaintenanceTool.exe'), '--confirm-command', 'purge'])
-        if (target / 'app' / 'Entropy.exe').exists() or registered_uninstaller(target):
-            msg = 'Confirmed uninstall left the application or Windows Settings entry.'
-            raise RuntimeError(msg)
-
         if failures:
+            # Release any files still locked in the temporary test directory
+            run(
+                [
+                    'powershell',
+                    '-NoProfile',
+                    '-Command',
+                    'Get-Process EntropyMaintenanceTool -ErrorAction SilentlyContinue | Stop-Process; exit 0',
+                ]
+            )
             raise RuntimeError('\n'.join(failures))
 
         print('Installed worker, uninstall cancellation, and confirmed removal passed.', flush=True)

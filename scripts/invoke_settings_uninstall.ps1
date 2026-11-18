@@ -15,31 +15,22 @@ function Wait-SettingsControl($description, [scriptblock]$select) {
         if ($match.Count -eq 1) { return $match[0] }
         Start-Sleep -Milliseconds 500
     } while ([DateTime]::UtcNow -lt $deadline)
-    $controls | ForEach-Object {
+    $controls | Where-Object { $_.Current.Name -match 'Entropy|Uninstall|Remove' } | ForEach-Object {
         Write-Host $_.Current.ControlType.ProgrammaticName $_.Current.AutomationId $_.Current.Name
     }
     throw "Windows Settings did not expose a unique $description"
 }
 
 Start-Process 'ms-settings:appsfeatures'
-$search = Wait-SettingsControl 'installed apps search field' {
-    param($controls)
-    $controls | Where-Object {
-        $_.Current.ControlType.ProgrammaticName -eq 'ControlType.Edit' -and
-        $_.Current.Name -match 'Search (apps|this list)'
-    }
-}
-$search.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('Entropy')
-
 $options = Wait-SettingsControl 'menu for the Entropy entry' {
     param($controls)
     $row = $controls | Where-Object {
         $_.Current.ControlType.ProgrammaticName -eq 'ControlType.ListItem' -and
-        $_.Current.Name -match '^Entropy(\W|$)'
+        $_.Current.Name -match '^Entropy, [^,]+, jedace07,'
     }
     if (@($row).Count -eq 1) {
         $row.FindAll($scope, $all) | Where-Object {
-            $_.Current.ControlType.ProgrammaticName -eq 'ControlType.Button' -and
+            $_.Current.AutomationId -eq 'AppOptionsButton' -and
             $_.Current.IsEnabled
         }
     }

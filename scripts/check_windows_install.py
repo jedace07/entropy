@@ -147,22 +147,9 @@ def wait_for_button(script: Path, button: str, *, timeout: int = 30) -> None:
     raise RuntimeError(msg)
 
 
-def check_uninstall_confirmation(target: Path, script: Path) -> None:
-    """Choose Uninstall in Windows Settings, then cancel in the maintenance wizard."""
-    command = registered_uninstaller(target)
-    if not command:
-        msg = f'Missing Windows Settings uninstall entry for {target}'
-        raise RuntimeError(msg)
-    print(f'Windows Settings uninstall command: {command}', flush=True)
-
-    run(
-        [
-            'powershell',
-            '-NoProfile',
-            '-File',
-            str(Path(__file__).with_name('invoke_settings_uninstall.ps1')),
-        ]
-    )
+def check_shortcut_cancellation(target: Path, script: Path, shortcut: Path) -> None:
+    """Open the Start menu shortcut and cancel in the maintenance wizard."""
+    os.startfile(shortcut)  # ruff: ignore[start-process-with-no-shell]
     wait_for_button(script, 'Uninstall')
 
     # Cancel asks whether to quit, and Yes closes the tool without removing anything
@@ -180,13 +167,15 @@ def check_uninstall_confirmation(target: Path, script: Path) -> None:
     print('Uninstall confirmation and cancellation passed.', flush=True)
 
 
-def check_shortcut_removal(target: Path, script: Path) -> None:
-    """Remove the installed app through its actual Start menu shortcut."""
-    programs = run(
-        ['powershell', '-NoProfile', '-Command', "[Environment]::GetFolderPath('Programs')"]
-    )
-    shortcut = Path(programs.stdout.strip()) / 'Entropy' / 'Uninstall Entropy.lnk'
-    os.startfile(shortcut)  # ruff: ignore[start-process-with-no-shell]
+def check_settings_removal(target: Path, script: Path, shortcut: Path) -> None:
+    """Remove the installed app using the Uninstall action in Windows Settings."""
+    command = registered_uninstaller(target)
+    if not command:
+        msg = f'Missing Windows Settings uninstall entry for {target}'
+        raise RuntimeError(msg)
+    print(f'Windows Settings uninstall command: {command}', flush=True)
+    settings_script = Path(__file__).with_name('invoke_settings_uninstall.ps1')
+    run(['powershell', '-NoProfile', '-File', str(settings_script)])
     wait_for_button(script, 'Uninstall')
     inspect_ui(script, 'EntropyMaintenanceTool', 'Uninstall')
     wait_for_button(script, 'Finish', timeout=120)
@@ -227,12 +216,17 @@ def main() -> int:
             ]
         )
 
+        programs = run(
+            ['powershell', '-NoProfile', '-Command', "[Environment]::GetFolderPath('Programs')"]
+        )
+        shortcut = Path(programs.stdout.strip()) / 'Entropy' / 'Uninstall Entropy.lnk'
+
         # Run every check even if one fails, so a single CI run reports them all
         failures: list[str] = []
         for check in (
             lambda: check_worker(target / 'app' / 'Entropy.exe', script, root / 'application.log'),
-            lambda: check_uninstall_confirmation(target, script),
-            lambda: check_shortcut_removal(target, script),
+            lambda: check_shortcut_cancellation(target, script, shortcut),
+            lambda: check_settings_removal(target, script, shortcut),
         ):
             try:
                 check()

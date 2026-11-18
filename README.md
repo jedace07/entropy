@@ -4,7 +4,7 @@ A PySide6 / Qt Quick desktop image upscaler using MNN with OpenCL and Metal back
 installs its default **Real-ESRGAN General 4×** enhancement model automatically.
 There is no model file picker or manual model configuration.
 
-The current prerelease is **v0.3.0-alpha.2** (`0.3.0a2` in Python package metadata).
+The current prerelease is **v0.3.0-alpha.3** (`0.3.0a3` in Python package metadata).
 
 The runtime automatically selects Metal on macOS and OpenCL on Linux and Windows;
 backend selection is internal. Metal is groundwork for future macOS support:
@@ -234,8 +234,8 @@ job builds MNN with MSVC, compiles the application with `pyside6-deploy` (Nuitka
 standalone mode), checks that the compiled application can load its workspace
 without downloading a model, then wraps it with Qt Installer Framework's `binarycreator`.
 Before publishing, it installs the package on Windows, checks the GUI's MNN worker
-handshake and the registered uninstall confirmation, verifies cancellation preserves
-the application, then uninstalls through the Start menu shortcut and checks that
+handshake, verifies that cancelling from the Start menu uninstall shortcut preserves
+the application, then uninstalls through Windows Settings and checks that
 the installation directory, shortcut and Windows Settings entry are gone.
 The application starts without a console window and uses its own executable for
 isolated GPU workers. It reads the bundled model from its installation directory
@@ -245,6 +245,10 @@ maintenance tool also available through Windows Settings. The application and
 its Qt runtime live in the `app/` subdirectory, separate from the maintenance
 tool. Setup skips component and Start menu folder selection; uninstall opens
 the removal wizard and requires confirmation.
+
+If the uninstall window for an older Entropy release flashes and closes in
+Windows Settings, open `EntropyMaintenanceTool.exe` in its installation folder
+(by default `%LOCALAPPDATA%\Programs\Entropy`) and finish the wizard there.
 
 To build the installer locally on Windows, use the x64 Native Tools Command Prompt
 and install the build tools and Qt Installer Framework:

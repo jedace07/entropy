@@ -6,9 +6,9 @@ on:
       tag:
         description: Release tag to check
         required: true
-        default: v0.2.1-alpha.1
+        default: v0.3.0-alpha.3
       repackage:
-        description: Diagnose current installer scripts with the published payload and repaired worker path
+        description: Test current installer tooling with the published application payload
         type: boolean
         default: false
 
@@ -32,6 +32,8 @@ jobs:
 
       - name: Create diagnostic installer from published payload
         if: inputs.repackage
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           $binarycreator = ./scripts/install_qt_ifw.ps1 -Destination "$env:RUNNER_TEMP/qtifw"
           $tools = Split-Path $binarycreator
@@ -45,13 +47,15 @@ jobs:
           $archive = Get-ChildItem "$dump/metadata/io.github.jedace07.Entropy/*app.7z" | Select-Object -First 1
           & 7z x $archive.FullName "-o$data" -y -bso0 -bsp0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # Diagnostic fixture only: prove the old worker's missing python.exe path.
-          Copy-Item "$data/app/Entropy.exe" "$data/app/python.exe"
+          # The oldest worker fixture looks for python.exe
+          if ($env:RELEASE_TAG -eq 'v0.2.1-alpha.1') {
+            Copy-Item "$data/app/Entropy.exe" "$data/app/python.exe"
+          }
           Copy-Item "$data/app/Entropy.ico" "$layout/config/Entropy.ico"
           Copy-Item LICENSE "$layout/packages/io.github.jedace07.Entropy/meta/LICENSE"
           Copy-Item src/entropy/licenses/Real-ESRGAN.txt "$layout/packages/io.github.jedace07.Entropy/meta/Real-ESRGAN.txt"
           foreach ($metadata in @("$layout/config/config.xml", "$layout/packages/io.github.jedace07.Entropy/meta/package.xml")) {
-            (Get-Content $metadata -Raw).Replace('@VERSION@', '0.2.1-alpha.1').Replace('@RELEASE_DATE@', (Get-Date -Format yyyy-MM-dd)) | Set-Content $metadata -Encoding utf8
+            (Get-Content $metadata -Raw).Replace('@VERSION@', $env:RELEASE_TAG.Substring(1)).Replace('@RELEASE_DATE@', (Get-Date -Format yyyy-MM-dd)) | Set-Content $metadata -Encoding utf8
           }
           & "$tools/binarycreator.exe" --offline-only --config "$layout/config/config.xml" --packages "$layout/packages" dist/entropy-diagnostic-setup.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -148,15 +148,21 @@ def wait_for_button(script: Path, button: str, *, timeout: int = 30) -> None:
 
 
 def check_uninstall_confirmation(target: Path, script: Path) -> None:
-    """Launch the registered uninstaller through the shell, then cancel removal."""
-    maintenance = target / 'EntropyMaintenanceTool.exe'
+    """Choose Uninstall in Windows Settings, then cancel in the maintenance wizard."""
     command = registered_uninstaller(target)
-    if command is None or command.strip('"').casefold() != str(maintenance).casefold():
-        msg = f'Incorrect Windows Settings uninstall command: {command}'
+    if not command:
+        msg = f'Missing Windows Settings uninstall entry for {target}'
         raise RuntimeError(msg)
     print(f'Windows Settings uninstall command: {command}', flush=True)
 
-    os.startfile(str(maintenance), cwd=str(Path(os.environ['WINDIR']) / 'System32'))  # ruff: ignore[start-process-with-no-shell]
+    run(
+        [
+            'powershell',
+            '-NoProfile',
+            '-File',
+            str(Path(__file__).with_name('invoke_settings_uninstall.ps1')),
+        ]
+    )
     wait_for_button(script, 'Uninstall')
 
     # Cancel asks whether to quit, and Yes closes the tool without removing anything

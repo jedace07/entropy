@@ -251,9 +251,9 @@ and install the build tools and Qt Installer Framework:
 
 ```bat
 uv sync --group windows-build
-uv run --group windows-build aqt install-tool windows desktop tools_ifw qt.tools.ifw.47 --outputdir C:\Qt
+powershell -NoProfile -File scripts\install_qt_ifw.ps1 -Destination C:\Qt\IFW-4.11
 uv run --group windows-build python scripts/build_mnn.py --jobs 4
-uv run --group windows-build python scripts/package_windows.py --binarycreator C:\Qt\Tools\QtInstallerFramework\4.7\bin\binarycreator.exe
+uv run --group windows-build python scripts/package_windows.py --binarycreator C:\Qt\IFW-4.11\bin\binarycreator.exe
 ```
 
 You can instead put `binarycreator.exe` on `PATH` or set `QTIFW_BINARYCREATOR` to

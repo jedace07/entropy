@@ -1,6 +1,6 @@
 # Invoke the Installed apps entry on an English-language Windows test host
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 $scope = [System.Windows.Automation.TreeScope]::Descendants
 $all = [System.Windows.Automation.Condition]::TrueCondition
 $invoke = [System.Windows.Automation.InvokePattern]::Pattern

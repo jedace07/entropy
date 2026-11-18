@@ -30,7 +30,9 @@ dev = [
     "pytest>=9.2.0,<10",
     "ruff>=0.17.5",
 ]
-windows-build = ["Nuitka==4.1.1", "aqtinstall==3.3.0"]
+windows-build = [
+    "Nuitka==4.1.1",
+]
 
 [project.scripts]
 entropy = "entropy.__main__:main"

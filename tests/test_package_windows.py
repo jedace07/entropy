@@ -148,7 +148,7 @@ def check_shortcuts(component: Path) -> None:
     assert '@DesktopDir@/Entropy.lnk' in shortcuts
     assert '@StartMenuDir@/Uninstall Entropy.lnk' in shortcuts
     assert '@TargetDir@/EntropyMaintenanceTool.exe' in shortcuts
-    assert '"--start-uninstaller"' in shortcuts
+    assert '"--start-uninstaller --no-size-checking"' in shortcuts
     assert '@TargetDir@/app/Entropy.exe' in shortcuts
     assert 'workingDirectory=@TargetDir@/app' in shortcuts
 

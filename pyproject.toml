@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.13.7,<0.14.0"]
+requires = ["uv_build>=0.13.9,<0.14.0"]
 build-backend = "uv_build"
 
 [project]
@@ -14,9 +14,9 @@ authors = [
 ]
 requires-python = ">=3.14,<3.15"
 dependencies = [
-    "numpy>=2.5.4,<3",
+    "numpy>=2.5.5,<3",
     "Pillow>=13.0.0,<14",
-    "platformdirs>=4.14.5,<5",
+    "platformdirs>=4.14.7,<5",
     "pydantic>=2.14.3,<3",
     "PySide6>=6.12.0,<7",
 ]
@@ -31,7 +31,7 @@ dev = [
     "ruff>=0.17.5",
 ]
 windows-build = [
-    "Nuitka==4.1.1",
+    "Nuitka==4.3.5",
 ]
 
 [project.scripts]

@@ -36,7 +36,7 @@ WINDOWS = sys.platform == 'win32'
 NOEXECSTACK = '-Wl,-z,noexecstack'
 
 # Upstream's setup.py still imports distutils, so pin the setuptools that provides it
-WHEEL_BUILD_REQUIREMENTS = ('setuptools==84.2.1', 'wheel==0.48.0', 'numpy>=2.5.4,<3')
+WHEEL_BUILD_REQUIREMENTS = ('setuptools==84.2.1', 'wheel==0.48.0', 'numpy>=2.5.5,<3')
 
 # Why some options are needed:
 #   CMAKE_POLICY_VERSION_MINIMUM: CMake 4 rejects old minimums in bundled projects

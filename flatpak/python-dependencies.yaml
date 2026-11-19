@@ -5,18 +5,18 @@ buildsystem: simple
 build-commands:
   - >-
     uv pip install --python=/usr/bin/python3 --prefix=/app --offline --no-index --no-deps
-    --find-links=. annotated-types==0.8.0 numpy==2.5.4 pillow==13.0.0 platformdirs==4.14.5 pydantic==2.14.3 pydantic-core==2.50.4 typing-extensions==4.16.0 typing-inspection==0.4.5 shiboken6==6.12.0 pyside6-essentials==6.12.0 pyside6-addons==6.12.0 pyside6-pdf==6.12.0.140 pyside6-webengine==6.12.0.140 pyside6==6.12.0 packaging==26.3 setuptools==84.2.1 wheel==0.48.0 uv-build==0.13.7
+    --find-links=. annotated-types==0.8.0 numpy==2.5.5 pillow==13.0.0 platformdirs==4.14.7 pydantic==2.14.3 pydantic-core==2.50.4 typing-extensions==4.16.0 typing-inspection==0.4.5 shiboken6==6.12.0 pyside6-essentials==6.12.0 pyside6-addons==6.12.0 pyside6-pdf==6.12.0.140 pyside6-webengine==6.12.0.140 pyside6==6.12.0 packaging==26.3 setuptools==84.2.1 wheel==0.48.0 uv-build==0.13.9
 sources:
   - type: file
     url: https://files.pythonhosted.org/packages/99/91/8acff4f5e50511b911bbccb72b8628a49c68ce14148cd9f6431094859a90/annotated_types-0.8.0-py3-none-any.whl
     sha256: f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0
   - type: file
-    url: https://files.pythonhosted.org/packages/16/d5/928078d2b28f26829b138b4a6c3980045022fb409f570657a224ae60ef4e/numpy-2.5.4-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-    sha256: d549420b8858885cea8838a727842249218b9c1da24dd517e25c9c7a948310a3
+    url: https://files.pythonhosted.org/packages/a4/1f/fcdce1061fba2bfb2e9bfda01fbd8132d5f7522a4f7c8e2b2f629d54ee38/numpy-2.5.5-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+    sha256: c48960d420e90cf305cb1fde0d4e6082cc90512cda87a9acf0b6e04e91cf4abe
     only-arches: [x86_64]
   - type: file
-    url: https://files.pythonhosted.org/packages/63/d6/34b0a2b0741386a63025a65a2c09caaaaaad6d0ca95b66cd65c30dd7fcb5/numpy-2.5.4-cp314-cp314-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl
-    sha256: 4054173604cd8658796053f1f3bc0befb68ec1c0762c57fdad61e199256a8617
+    url: https://files.pythonhosted.org/packages/26/5b/5cd4b88a64bb57ca6d3bd6a9e057db445544a2179a2ebf985660e0454648/numpy-2.5.5-cp314-cp314-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl
+    sha256: cc6eb7502facce90349b4097a26821af224aaa0ab36e78304711cdb544352882
     only-arches: [aarch64]
   - type: file
     url: https://files.pythonhosted.org/packages/1d/f2/1371707ce438ba9a43f9d24089828494ec6f9396e28cd7903aa704dd6306/pillow-13.0.0-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
@@ -27,8 +27,8 @@ sources:
     sha256: 5933fcea5a5ba64c686f55c886a115cbfd92f2900460784a1e79909fdbafd7b6
     only-arches: [aarch64]
   - type: file
-    url: https://files.pythonhosted.org/packages/7c/ae/ecbbbfd0e4343a6a521d49b3c8656fb4643dee2a4f6eaf941cf3280391a8/platformdirs-4.14.5-py3-none-any.whl
-    sha256: 8e778c6fa421516f4d3369449f8df3b0e1b72c0e0005fe88e3ec772d0a14e750
+    url: https://files.pythonhosted.org/packages/f8/46/3737af9f971f3934794103256d7f1ed6200a62be0c7b7ff09ac4cf6b3422/platformdirs-4.14.7-py3-none-any.whl
+    sha256: 391513b74707c42335fff3ea17eaac657a7ee9ffcadd809634d34ea594d0122c
   - type: file
     url: https://files.pythonhosted.org/packages/72/b8/b864503789ef5c58597d2a7b4adbee62c26440ab1e682581fc6838df8947/pydantic-2.14.3-py3-none-any.whl
     sha256: 3f7b347782ab7e4cf4c798496ae3a82787d9f21ec12676a9c564355eeef8daa8
@@ -104,10 +104,10 @@ sources:
     url: https://files.pythonhosted.org/packages/2e/29/69cfbb602cd91690c55d38ba9fe53e6a7e76a6fa647bf38f19c138d25449/wheel-0.48.0-py3-none-any.whl
     sha256: 3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab
   - type: file
-    url: https://files.pythonhosted.org/packages/17/b6/3b78f8c99a16f17c5702ddbb8c1f5cc5a4305512812c9d4df79210166a18/uv_build-0.13.7-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-    sha256: e6f6770708419e6c752b726621c656e3c43b723e77502c2901494909dd143639
+    url: https://files.pythonhosted.org/packages/d2/1b/bf1e882da983f39c194ed759f7e23a585d577bf10bf688c81224a96c30fb/uv_build-0.13.9-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+    sha256: 56fce70783044968debb3277cb75e7bcdf0e5fc899bbfa5660f15ae338c11830
     only-arches: [x86_64]
   - type: file
-    url: https://files.pythonhosted.org/packages/23/5b/e5898935d73c77e09c7838ba9a44e53421e47d537287a44130efc52378e2/uv_build-0.13.7-py3-none-manylinux_2_28_aarch64.whl
-    sha256: ea25f29a09376d610037f0275a318173ff187d55ce9d057e017db1ad215b3b38
+    url: https://files.pythonhosted.org/packages/27/50/426e2318e96cb848f753f01534e996828951f7ded4614c865c392e636878/uv_build-0.13.9-py3-none-manylinux_2_28_aarch64.whl
+    sha256: 8302eb4238e4f2cfdf06853ed52fce88fd47e0cf4d336032defbd89de4245a27
     only-arches: [aarch64]

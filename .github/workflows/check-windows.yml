@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to check
-        required: true
-        default: v0.3.0-alpha.3
+        description: Release tag to check, the newest published release when blank
+        required: false
+        default: ''
       repackage:
         description: Test current installer tooling with the published application payload
         type: boolean
@@ -27,13 +27,15 @@ jobs:
       - name: Download published installer
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.tag }}
-        run: gh release download "$env:RELEASE_TAG" --pattern entropy-windows-x86_64-setup.exe --dir dist
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          $tag = if ($env:INPUT_TAG) { $env:INPUT_TAG } else { gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName' }
+          if (-not $tag) { throw 'No published release to check' }
+          "RELEASE_TAG=$tag" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          gh release download $tag --pattern entropy-windows-x86_64-setup.exe --dir dist
 
       - name: Create diagnostic installer from published payload
         if: inputs.repackage
-        env:
-          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           $binarycreator = ./scripts/install_qt_ifw.ps1 -Destination "$env:RUNNER_TEMP/qtifw"
           $tools = Split-Path $binarycreator

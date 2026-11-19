@@ -4,7 +4,8 @@ A PySide6 / Qt Quick desktop image upscaler using MNN with OpenCL and Metal back
 installs its default **Real-ESRGAN General 4×** enhancement model automatically.
 There is no model file picker or manual model configuration.
 
-The current prerelease is **v0.3.0-alpha.3** (`0.3.0a3` in Python package metadata).
+Downloads for the current version are on the
+[releases page](https://github.com/jedace07/entropy/releases).
 
 The runtime automatically selects Metal on macOS and OpenCL on Linux and Windows;
 backend selection is internal. Metal is groundwork for future macOS support:
@@ -211,29 +212,53 @@ and processing possible without a host Python environment or a user-built MNN
 runtime. Host GPU drivers must still be available through Flatpak's graphics
 extensions; OpenCL availability depends on the driver's support in the sandbox.
 
-## Automated builds and releases
+## Versioning and releases
 
-Push a version tag such as `v0.1.0` to build both x86_64 packages:
+The version in `pyproject.toml` is the only place the version is set. Use
+`uv version` to change it in `pyproject.toml` and `uv.lock`:
+
+```bash
+# Stable patch: 0.3.0 -> 0.3.1
+uv version --bump patch
+
+# First alpha of the next minor: 0.3.0 -> 0.4.0a1
+uv version --bump minor --bump alpha
+
+# Subsequent alpha: 0.4.0a1 -> 0.4.0a2
+uv version --bump alpha
+
+# Promote a prerelease: 0.4.0a2 -> 0.4.0
+uv version --bump stable
+```
+
+Commit and push the bump, then run **Build draft release** from the Actions tab.
+It builds both packages and creates a draft GitHub release for that commit with
+generated release notes. Review the draft and publish it, which creates the tag.
+Release tags spell prereleases out, so `0.4.0a1` becomes `v0.4.0-alpha.1` and is
+marked as a GitHub prerelease, while `0.4.0` becomes `v0.4.0` and is a stable
+release. The workflow refuses to run for a version that already has a release.
+
+## Automated builds
+
+Each build produces both x86_64 packages:
 
 - `entropy-x86_64.flatpak` for Linux.
 - `entropy-windows-x86_64-setup.exe` for Windows, an offline Qt Installer Framework
   installer containing the standalone application, dependencies, the OpenCL
   runtime, the enhancement model and license texts.
 
-Both builds must succeed before the workflow publishes a GitHub Release with
-the two downloads and generated release notes. Run **Publish builds** manually
-from the Actions tab to download build artifacts without creating a release.
-Ordinary pushes and pull requests do not run a workflow.
-Tags with a prerelease suffix, such as `v0.1.0-alpha.1`, publish as GitHub
-prereleases; tags such as `v0.1.0` publish as stable releases.
+Both builds must succeed before **Build draft release** creates the draft
+release. Run **Build packages** manually from the Actions tab to download build
+artifacts without creating a release. Ordinary pushes and pull requests do not
+run a workflow.
 
-The workflow builds, validates the Windows installation, packages and publishes.
+The workflow builds, validates the Windows installation and packages.
 It does not install the `dev` dependency group or run the test suite, GPU inference
 tests or lint checks. The Windows
 job builds MNN with MSVC, compiles the application with `pyside6-deploy` (Nuitka in
 standalone mode), checks that the compiled application can load its workspace
 without downloading a model, then wraps it with Qt Installer Framework's `binarycreator`.
-Before publishing, it installs the package on Windows, checks the GUI's MNN worker
+Before uploading the installer, it installs the package on Windows, checks the GUI's MNN worker
 handshake, verifies that cancelling from the Start menu uninstall shortcut preserves
 the application, then uninstalls through Windows Settings and checks that
 the installation directory, shortcut and Windows Settings entry are gone.

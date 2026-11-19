@@ -1,16 +1,54 @@
-name: Publish builds
+name: Build packages
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_call:
+    inputs:
+      release:
+        description: Fail when the project version already has a GitHub release
+        type: boolean
+        default: false
+    outputs:
+      version:
+        description: Project version from pyproject.toml in release tag format
+        value: ${{ jobs.prepare.outputs.version }}
+      is_prerelease:
+        description: Whether the project version is a prerelease
+        value: ${{ jobs.prepare.outputs.is_prerelease }}
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v10.3.3
+
+      - name: Resolve release version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ inputs.release }}
+        run: |
+          version="$(uv run --no-project python -I src/entropy/version.py "$(uv version --short)")"
+          if [ "$RELEASE" = 'true' ] && gh release view "v$version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "::error::v$version already has a release. Bump the version with uv version first."
+            exit 1
+          fi
+          if [[ "$version" == *-* ]]; then is_prerelease=true; else is_prerelease=false; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=$is_prerelease" >> "$GITHUB_OUTPUT"
+
   flatpak:
+    needs: prepare
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-26.08
@@ -31,6 +69,7 @@ jobs:
           artifact-name: flatpak-x86_64
 
   windows:
+    needs: prepare
     runs-on: windows-latest
     env:
       UV_NO_EDITABLE: '1'
@@ -72,24 +111,3 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
-  release:
-    needs: [flatpak, windows]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          path: release
-          merge-multiple: true
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          files: |
-            release/entropy-x86_64.flatpak
-            release/entropy-windows-x86_64-setup.exe
-          fail_on_unmatched_files: true
-          generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}

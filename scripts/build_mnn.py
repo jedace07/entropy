@@ -35,6 +35,9 @@ PATCHES = sorted((Path(__file__).resolve().parents[1] / 'packaging' / 'mnn').glo
 WINDOWS = sys.platform == 'win32'
 NOEXECSTACK = '-Wl,-z,noexecstack'
 
+# Some distributions, such as older Fedora and RHEL, only ship ninja as ninja-build
+NINJA_NAMES = ('ninja', 'ninja-build')
+
 # Upstream's setup.py still imports distutils, so pin the setuptools that provides it
 WHEEL_BUILD_REQUIREMENTS = ('setuptools==84.2.1', 'wheel==0.48.0', 'numpy>=2.5.5,<3')
 
@@ -87,6 +90,14 @@ def succeeds(command: Sequence[str | Path], *, cwd: Path | None = None) -> bool:
     return result.returncode == 0
 
 
+def find_ninja(requested: str | None) -> Path | None:
+    """Resolve the ninja executable from an explicit name or path, or from PATH."""
+    for name in (requested,) if requested else NINJA_NAMES:
+        if found := shutil.which(name):
+            return Path(found).absolute()
+    return None
+
+
 def parse_args() -> argparse.Namespace:
     """Parse the command line and stop early if the host cannot build MNN."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -99,6 +110,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--source', type=Path, help='reuse an existing MNN checkout at the pinned commit'
     )
+    parser.add_argument(
+        '--ninja',
+        metavar='PATH',
+        help='ninja executable to build with (default: ninja or ninja-build on PATH)',
+    )
     args = parser.parse_args()
 
     if args.jobs < 1:
@@ -108,8 +124,14 @@ def parse_args() -> argparse.Namespace:
         parser.error('Only Linux and Windows are supported; macOS is not yet supported.')
 
     # Check every tool up front instead of failing halfway through a long build
-    tools = ['uv', 'git', 'cmake', 'ninja', *(('cl', 'link', 'rc') if WINDOWS else ('c++',))]
-    if missing := [tool for tool in tools if shutil.which(tool) is None]:
+    tools = ['uv', 'git', 'cmake', *(('cl', 'link', 'rc') if WINDOWS else ('c++',))]
+    missing = [tool for tool in tools if shutil.which(tool) is None]
+
+    args.ninja = find_ninja(args.ninja)
+    if args.ninja is None:
+        missing.append('ninja')
+
+    if missing:
         hint = ''
         if WINDOWS:
             hint = (
@@ -168,12 +190,16 @@ def build_python(cache: Path) -> Path:
     return python
 
 
-def build_wheel(source: Path, python: Path, jobs: int) -> Path:
+def build_wheel(source: Path, python: Path, ninja: Path, jobs: int) -> Path:
     """Compile static MNN with OpenCL and package the Python bindings as a wheel."""
     # Upstream's setup.py expects the CMake tree at exactly this path
     build = source / 'pymnn_build'
     options = [*CMAKE_OPTIONS, *(WINDOWS_CMAKE_OPTIONS if WINDOWS else LINUX_CMAKE_OPTIONS)]
-    run(['cmake', '-S', source, '-B', build, '-G', 'Ninja', *options])
+
+    # A reused build tree remembers where ninja was when it was first configured, which
+    # breaks when that path is gone, such as after moving between a toolbox and the host
+    generator = ['-G', 'Ninja', f'-DCMAKE_MAKE_PROGRAM={ninja.as_posix()}']
+    run(['cmake', '-S', source, '-B', build, *generator, *options])
     run(['cmake', '--build', build, '--target', 'MNN', '--parallel', str(jobs)])
 
     # Clear old wheels so the one found below is from this build
@@ -260,7 +286,7 @@ def main() -> None:
 
     prepare_source(source)
     python = build_python(cache)
-    wheel = build_wheel(source, python, args.jobs)
+    wheel = build_wheel(source, python, args.ninja, args.jobs)
 
     root = runtime_root()
     root.mkdir(parents=True, exist_ok=True)

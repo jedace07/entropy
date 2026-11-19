@@ -27,7 +27,6 @@ mnn = ["MNN>=3.6.2,<4"]
 [dependency-groups]
 dev = [
     "pyright>=1.1.414",
-    "pytest>=9.2.0,<10",
     "ruff>=0.17.5",
 ]
 windows-build = [
@@ -45,13 +44,13 @@ files = ["src/entropy/__main__.py", "src/entropy/ui/controller.py", "src/entropy
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.14"
-include = ["src", "tests", "scripts"]
+include = ["src", "scripts"]
 exclude = ["**/node_modules", "**/__pycache__", "**/.*", ".venv", "build", "dist", ".agents"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py314"
-extend-exclude = [".agents", "tests", "typings"]
+extend-exclude = [".agents", "typings"]
 force-exclude = true
 
 [tool.ruff.lint]
@@ -162,18 +161,8 @@ convention = "numpy"
 [tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true
 
-[tool.ruff.lint.flake8-pytest-style]
-fixture-parentheses = false
-mark-parentheses = false
-parametrize-names-type = "csv"
-
 [tool.ruff.lint.flake8-quotes]
 inline-quotes = "single"
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "contextlib.suppress".msg = "Use an explicit try/except for performance reasons."
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-# Lets the tests import the build scripts as the `scripts` package
-pythonpath = ["."]

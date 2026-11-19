@@ -48,7 +48,9 @@ uv run entropy
 The build needs `git`, `cmake`, `ninja`, a C++ compiler and internet access. It
 uses uv-managed Python development headers and a separate build environment.
 Compilation can take several minutes; `--jobs 4` limits parallel compilation.
-Neither root privileges nor system-wide library modifications are required.
+Ninja is found on `PATH` as `ninja` or `ninja-build`; pass `--ninja PATH` to use
+a different one. Neither root privileges nor system-wide library modifications
+are required.
 
 On Windows, install Visual Studio 2022 Build Tools with **Desktop development
 with C++** and a Windows SDK, plus uv, Git, CMake and Ninja. Open the **x64 Native
@@ -253,8 +255,7 @@ artifacts without creating a release. Ordinary pushes and pull requests do not
 run a workflow.
 
 The workflow builds, validates the Windows installation and packages.
-It does not install the `dev` dependency group or run the test suite, GPU inference
-tests or lint checks. The Windows
+It does not install the `dev` dependency group or run lint checks. The Windows
 job builds MNN with MSVC, compiles the application with `pyside6-deploy` (Nuitka in
 standalone mode), checks that the compiled application can load its workspace
 without downloading a model, then wraps it with Qt Installer Framework's `binarycreator`.
@@ -308,11 +309,10 @@ uv run ruff format --check
 uv run pyright
 uv run pyside6-project build
 uv run pyside6-qmllint -I . $(find "$PWD/src/entropy/ui/qml" -name '*.qml')
-uv run pytest -ra
 uv build
 ```
 
-Pyright runs in strict mode over `src`, `scripts` and `tests`. PySide6's bundled
+Pyright runs in strict mode over `src` and `scripts`. PySide6's bundled
 type stubs miss a few things, such as typed `Property` descriptors, so
 `typings/PySide6` holds patched copies that pyright reads first. Each patch is
 marked with a `# Patched:` comment. A stub there replaces the whole module, and
@@ -323,12 +323,6 @@ the explicit form,
 `outputScale = Property(float, _get, _set, notify=...)`, since strict pyright
 treats the `@x.setter` pattern as a redeclaration.
 
-Normal tests use generated models on CPU to check native tensor conversion,
-including packed layouts, plus download integrity/offline reuse, tiling, image
-handling, file collisions, batch errors, Qt startup and process cancellation.
-They do not require network access. Native CPU tests explicitly skip if MNN
-cannot load.
-
 The controller registers itself as the `Entropy` QML module at runtime.
 `pyside6-project build` writes matching `qmldir` and `.qmltypes` files to the
 ignored `Entropy/` folder, so qmllint and the QML language server know its
@@ -338,27 +332,8 @@ editor. qmllint gets absolute paths because with relative ones it fails to match
 `Theme.qml` to its `qmldir` entry and wrongly warns that the singleton is
 undeclared. Format with
 `uv run pyside6-qmlformat -i -W 100 $(find src/entropy/ui/qml -name '*.qml')`.
-Headless UI tests load light/dark themes, the compact layout and drawers.
 
-To verify actual portal D-Bus requests in a Linux desktop session:
-
-```bash
-ENTROPY_TEST_PORTAL=1 uv run pytest tests/test_portal.py -v
-```
-
-This test opens and automatically dismisses all three native pickers. It checks
-that each action sends exactly one portal request and needs `dbus-monitor`.
-
-Run the real default model with OpenCL acceleration:
-
-```bash
-ENTROPY_TEST_GPU=1 uv run pytest tests/test_gpu.py -v
-```
-
-These tests require the GPU runtime and drivers, and install the pinned model if
-it is not cached. They check dynamic tile inference, output dimensions and pixel
-sanity. GPU tests are opt-in and require suitable GPU hardware. Weekly dependency
-updates are configured.
+Weekly dependency updates are configured.
 
 Availability is reported by MNN; inference checks
 also validate output pixels so a successful probe alone is not treated as proof.

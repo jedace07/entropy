@@ -97,7 +97,6 @@ modules:
           - .git
           - .venv
           - .flatpak-builder
-          - .pytest_cache
           - .ruff_cache
           - build
           - dist

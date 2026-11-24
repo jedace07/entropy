@@ -29,6 +29,9 @@ dev = [
     "pyright>=1.1.414",
     "ruff>=0.17.5",
 ]
+macos-build = [
+    "nuitka==4.3.5",
+]
 windows-build = [
     "Nuitka==4.3.5",
 ]

@@ -8,16 +8,15 @@ Downloads for the current version are on the
 [releases page](https://github.com/jedace07/entropy/releases).
 
 The runtime automatically selects Metal on macOS and OpenCL on Linux and Windows;
-backend selection is internal. Metal is groundwork for future macOS support:
-macOS runtime builds, packaging, and hardware validation are not yet provided.
+backend selection is internal. The macOS package targets Apple silicon and can
+be built for testing from GitHub Actions, not as a public release.
 
 ## Run
 
 Python 3.14 is required and selected by `.python-version`. Python 3.15 support
 is deferred until MNN publishes a compatible wheel. Use
-[uv](https://docs.astral.sh/uv/) to manage the environment. Linux is the currently
-tested platform. The runtime build helper also supports Windows x64 with MSVC;
-native Windows GPU validation is still pending.
+[uv](https://docs.astral.sh/uv/) to manage the environment. The runtime build
+helper supports Linux, Windows x64 with MSVC, and Apple silicon Macs with Xcode.
 
 For Windows, download and run `entropy-windows-x86_64-setup.exe`. The installer
 installs Entropy for the current user under `%LOCALAPPDATA%\Programs\Entropy`,
@@ -34,11 +33,11 @@ uv run entropy
 
 On first launch, the app downloads and verifies the 4.9 MB default model. It
 shows download progress and caches the model for offline use. Add images,
-choose the output size and folder, and upscale. OpenCL acceleration is automatic.
+choose the output size and folder, and upscale. GPU acceleration is automatic.
 Use **Retry setup** in **Diagnostics** to retry model installation and check the runtime again.
 
 On this development machine the GPU runtime has already been built and installed.
-For a fresh Linux or Windows installation, build it once:
+On a fresh development machine, build it once:
 
 ```bash
 uv run python scripts/build_mnn.py
@@ -68,7 +67,6 @@ standard MNN wheel is not a substitute for this GPU build. Install current GPU
 drivers providing OpenCL. A separate OpenCL SDK is not
 required. Qt uses its native Windows file dialogs, and output folders must be
 on a filesystem with hard-link support, such as NTFS; FAT32/exFAT are unsupported.
-macOS runtime builds are not enabled yet.
 
 The runtime is installed in the user's application data directory, separately
 from `.venv`. Normal `uv sync` does not remove it. The app prefers this runtime
@@ -242,20 +240,22 @@ release. The workflow refuses to run for a version that already has a release.
 
 ## Automated builds
 
-Each build produces both x86_64 packages:
+Build artifacts:
 
 - `entropy-x86_64.flatpak` for Linux.
 - `entropy-windows-x86_64-setup.exe` for Windows, an offline Qt Installer Framework
   installer containing the standalone application, dependencies, the OpenCL
   runtime, the enhancement model and license texts.
+- `entropy-macos-arm64-testing.zip` for Apple silicon, an ad hoc signed test
+  package from **Build packages** only.
 
 Both builds must succeed before **Build draft release** creates the draft
 release. Run **Build packages** manually from the Actions tab to download build
 artifacts without creating a release. Ordinary pushes and pull requests do not
 run a workflow.
 
-The workflow builds, validates the Windows installation and packages.
-It does not install the `dev` dependency group or run lint checks. The Windows
+The workflow runs a CPU-only smoke check on Linux and validates the Windows
+installation. It does not install the `dev` dependency group or run lint checks. The Windows
 job builds MNN with MSVC, compiles the application with `pyside6-deploy` (Nuitka in
 standalone mode), checks that the compiled application can load its workspace
 without downloading a model, then wraps it with Qt Installer Framework's `binarycreator`.
@@ -300,6 +300,42 @@ Install a downloaded Flatpak with:
 flatpak install --user entropy-x86_64.flatpak
 ```
 
+## macOS testing build
+
+On an Apple silicon Mac, install Xcode, uv, Git, CMake, and Ninja. Use a native
+arm64 Python, not a Rosetta shell. Build the Metal runtime and package the app:
+
+```bash
+uv sync --locked --no-dev --group macos-build
+uv run --locked --no-dev --group macos-build python scripts/build_mnn.py --jobs 3
+uv run --locked --no-dev --group macos-build python scripts/package_macos.py
+```
+
+The script creates `dist/entropy-macos-arm64-testing.zip` with `Entropy.app`,
+the Metal runtime, and a verified model. The app and its worker use App Sandbox.
+The app has no network entitlement and gives the worker temporary access to the
+selected images and output folder for each batch. The output defaults to a folder
+inside the app container. To save elsewhere, use **Choose folder** and select the
+folder again after relaunching the app.
+
+CI checks the signatures, QML startup, packaged worker imports, model integrity,
+and that neither process can write to an unselected file. On a real Mac, use the
+native pickers to select an image and an output folder outside the app container.
+Run a 0.5× resize to test access, then a 2× upscale to test Metal. Confirm the
+results are saved to the chosen folder and can be previewed in the app.
+
+The ad hoc archive is for testing and may be blocked by Gatekeeper when downloaded.
+For a distribution build, install a **Developer ID Application** certificate and
+set up an `xcrun notarytool` keychain profile. Pass both to the package script:
+
+```bash
+uv run --locked --no-dev --group macos-build python scripts/package_macos.py \
+  --sign-identity 'Developer ID Application: NAME (TEAMID)' --notary-profile entropy
+```
+
+This produces `dist/entropy-macos-arm64.zip` after notarization and stapling.
+The draft-release workflow does not publish macOS artifacts.
+
 ## Development
 
 ```bash
@@ -311,6 +347,10 @@ uv run pyside6-project build
 uv run pyside6-qmllint -I . $(find "$PWD/src/entropy/ui/qml" -name '*.qml')
 uv build
 ```
+
+`uv run python scripts/smoke_test.py` checks software-rendered QML startup and
+a worker resize without a GPU. Add `--gpu` on a machine with the native MNN runtime
+to run one real inference tile. Hosted CI does not require OpenCL or Metal inference.
 
 Pyright runs in strict mode over `src` and `scripts`. PySide6's bundled
 type stubs miss a few things, such as typed `Property` descriptors, so

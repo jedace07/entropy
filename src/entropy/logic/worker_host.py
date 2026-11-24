@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import ValidationError
 from PySide6.QtCore import QCoreApplication, QObject, QProcess, QTimer, Signal
 
 from entropy.core.events import Error, ModelReady, decode
-from entropy.paths import is_compiled
+from entropy.paths import MACOS_WORKER, is_compiled, uses_macos_sandbox
 
 if TYPE_CHECKING:
     from entropy.core.config import UpscaleRequest
 
-type WorkerMode = Literal['probe', 'prepare', 'job']
+type WorkerMode = Literal['probe', 'prepare', 'job', 'check-bundle']
 
 # Generous enough for a cold driver, short enough to surface a hung probe
 PROBE_TIMEOUT_MS = 30_000
@@ -76,9 +77,11 @@ class WorkerHost(QObject):
         process.finished.connect(self._on_finished)
         process.errorOccurred.connect(self._on_error)
 
-        # The compiled app is its own worker, from source the package runs under Python
         if is_compiled():
-            process.start(QCoreApplication.applicationFilePath(), ['--worker', f'--{mode}'])
+            executable = QCoreApplication.applicationFilePath()
+            if uses_macos_sandbox():
+                executable = str(Path(executable).with_name(MACOS_WORKER))
+            process.start(executable, ['--worker', f'--{mode}'])
         else:
             process.start(sys.executable, ['-u', '-m', 'entropy', '--worker', f'--{mode}'])
 

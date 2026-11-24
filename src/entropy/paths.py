@@ -12,11 +12,17 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 APP_DIRECTORY = 'entropy'
+MACOS_WORKER = 'EntropyWorker'
 
 
 def is_compiled() -> bool:
     """Whether this module is running inside the Nuitka application."""
     return '__compiled__' in globals()
+
+
+def uses_macos_sandbox() -> bool:
+    """Whether the packaged macOS app needs App Sandbox file grants."""
+    return sys.platform == 'darwin' and is_compiled()
 
 
 def data_dir() -> Path:

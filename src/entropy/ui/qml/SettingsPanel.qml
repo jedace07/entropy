@@ -38,9 +38,13 @@ Rectangle {
                 Layout.fillWidth: true
                 text: root.controller.outputDirectory
                 enabled: root.controller.canEdit
+                readOnly: root.controller.outputFolderOnly
                 Accessible.name: qsTr("Output directory")
                 selectByMouse: true
-                onEditingFinished: root.controller.outputDirectory = text
+                onEditingFinished: {
+                    if (!readOnly)
+                        root.controller.outputDirectory = text;
+                }
             }
             ActionButton {
                 Layout.fillWidth: true

@@ -1,0 +1,49 @@
+Link the Metal Python wheel against static MNN and the system frameworks.
+
+Keep registration objects in the archive and do not ship MNN dylibs.
+
+diff --git a/pymnn/pip_package/setup.py b/pymnn/pip_package/setup.py
+--- a/pymnn/pip_package/setup.py
++++ b/pymnn/pip_package/setup.py
+@@ -65,6 +65,7 @@ package_name = 'mnn'
+ USE_INTERNAL = False
+ USE_TRT      = False
+ USE_CUDA     = False
++USE_METAL    = IS_DARWIN and args.deps == 'metal'
+ USE_OPENCL   = False
+ USE_VULKAN   = False
+ USE_RENDER   = False
+@@ -103,6 +104,8 @@ if USE_VULKAN:
+     package_name += '_vulkan'
+ if USE_OPENCL:
+     package_name += '_opencl'
++if USE_METAL:
++    package_name += '_metal'
+ if USE_RENDER:
+     package_name += '_render'
+ 
+@@ -239,7 +242,7 @@ def configure_extension_build():
+ 
+     if USE_TRT:
+         engine_depend += trt_depend
+-    if IS_DARWIN:
++    if IS_DARWIN and not USE_METAL:
+         lib_files += [('lib', [os.path.join(root_dir, BUILD_DIR, "libMNN.dylib")])]
+         lib_files += [('lib', [os.path.join(root_dir, BUILD_DIR, "tools","converter", "libMNNConvertDeps.dylib")])]
+ 
+@@ -333,7 +336,14 @@ def configure_extension_build():
+ 
+     if IS_DARWIN:
+         engine_link_args += ['-stdlib=libc++']
+-        engine_link_args += engine_depend
++        if USE_METAL:
++            engine_link_args += [
++                '-Wl,-force_load,' + os.path.join(root_dir, BUILD_DIR, 'libMNN.a'),
++                '-framework', 'Foundation', '-framework', 'Metal',
++                '-framework', 'CoreGraphics',
++            ]
++        else:
++            engine_link_args += engine_depend
+     if IS_LINUX:
+         engine_link_args += ['-Wl,--whole-archive']
+         engine_link_args += engine_depend

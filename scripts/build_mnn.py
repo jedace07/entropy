@@ -1,4 +1,4 @@
-"""Build MNN with OpenCL and install it as a per-user runtime.
+"""Build MNN with OpenCL or Metal and install it as a per-user runtime.
 
 Run from the project root with ``uv run python scripts/build_mnn.py``.
 
@@ -33,6 +33,8 @@ MNN_REPOSITORY = 'https://github.com/alibaba/MNN.git'
 
 PATCHES = sorted((Path(__file__).resolve().parents[1] / 'packaging' / 'mnn').glob('*.patch'))
 WINDOWS = sys.platform == 'win32'
+MACOS = sys.platform == 'darwin'
+BACKEND = 'Metal' if MACOS else 'OpenCL'
 NOEXECSTACK = '-Wl,-z,noexecstack'
 
 # Some distributions, such as older Fedora and RHEL, only ship ninja as ninja-build
@@ -48,7 +50,7 @@ WHEEL_BUILD_REQUIREMENTS = ('setuptools==84.2.1', 'wheel==0.48.0', 'numpy>=2.5.5
 CMAKE_OPTIONS = (
     '-DCMAKE_BUILD_TYPE=Release',
     '-DMNN_BUILD_SHARED_LIBS=OFF',
-    '-DMNN_OPENCL=ON',
+    '-DMNN_OPENCL=OFF' if MACOS else '-DMNN_OPENCL=ON',
     '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
     '-DCMAKE_CXX_EXTENSIONS=OFF',
     '-DMNN_BUILD_TRAIN=ON',
@@ -63,6 +65,8 @@ WINDOWS_CMAKE_OPTIONS = (
     '-DCMAKE_CXX_COMPILER=cl',
     '-DMNN_WIN_RUNTIME_MT=ON',
 )
+
+MACOS_CMAKE_OPTIONS = ('-DMNN_METAL=ON', '-DMNN_METAL_TENSOR=OFF')
 
 # Hand-written assembly would otherwise mark the extension as needing an
 # executable stack, which current glibc refuses to load
@@ -120,8 +124,8 @@ def parse_args() -> argparse.Namespace:
     if args.jobs < 1:
         parser.error('--jobs must be positive')
 
-    if sys.platform not in {'linux', 'win32'}:
-        parser.error('Only Linux and Windows are supported; macOS is not yet supported.')
+    if sys.platform not in {'darwin', 'linux', 'win32'}:
+        parser.error('Only Linux, macOS and Windows are supported.')
 
     # Check every tool up front instead of failing halfway through a long build
     tools = ['uv', 'git', 'cmake', *(('cl', 'link', 'rc') if WINDOWS else ('c++',))]
@@ -191,10 +195,15 @@ def build_python(cache: Path) -> Path:
 
 
 def build_wheel(source: Path, python: Path, ninja: Path, jobs: int) -> Path:
-    """Compile static MNN with OpenCL and package the Python bindings as a wheel."""
+    """Compile static MNN with the platform GPU backend and package its bindings."""
     # Upstream's setup.py expects the CMake tree at exactly this path
     build = source / 'pymnn_build'
-    options = [*CMAKE_OPTIONS, *(WINDOWS_CMAKE_OPTIONS if WINDOWS else LINUX_CMAKE_OPTIONS)]
+    platform_options = {
+        'darwin': MACOS_CMAKE_OPTIONS,
+        'linux': LINUX_CMAKE_OPTIONS,
+        'win32': WINDOWS_CMAKE_OPTIONS,
+    }
+    options = [*CMAKE_OPTIONS, *platform_options[sys.platform]]
 
     # A reused build tree remembers where ninja was when it was first configured, which
     # breaks when that path is gone, such as after moving between a toolbox and the host
@@ -211,15 +220,15 @@ def build_wheel(source: Path, python: Path, ninja: Path, jobs: int) -> Path:
     if WINDOWS:
         # Make setuptools use the MSVC environment that CMake used
         env['DISTUTILS_USE_SDK'] = '1'
-    else:
+    elif not MACOS:
         env['LDFLAGS'] = NOEXECSTACK
 
-    setup = [python, 'setup.py', 'build_ext', '--force', 'bdist_wheel', '--deps', 'opencl']
+    setup = [python, 'setup.py', 'build_ext', '--force', 'bdist_wheel', '--deps', BACKEND.lower()]
     run(setup, cwd=package, env=env)
 
-    wheels = list(dist.glob('mnn_opencl-*.whl'))
+    wheels = list(dist.glob(f'mnn_{BACKEND.lower()}-*.whl'))
     if len(wheels) != 1:
-        msg = f'Expected one mnn_opencl wheel in {dist}, found {len(wheels)}'
+        msg = f'Expected one MNN {BACKEND} wheel in {dist}, found {len(wheels)}'
         raise RuntimeError(msg)
 
     return wheels[0]
@@ -252,7 +261,7 @@ def activate_runtime(root: Path, target: Path) -> None:
         'directory': target.name,
         'version': MNN_VERSION,
         'source_commit': MNN_COMMIT,
-        'compiled_backends': ['OpenCL'],
+        'compiled_backends': [BACKEND],
     }
 
     # Write beside the real file and rename over it, so the app never reads half a manifest
@@ -277,7 +286,7 @@ def remove_stale_runtimes(root: Path, active: Path) -> None:
 
 
 def main() -> None:
-    """Build, install and activate the OpenCL runtime."""
+    """Build, install and activate the platform's GPU runtime."""
     args = parse_args()
 
     cache = cache_dir() / f'mnn-{MNN_VERSION}'
@@ -294,7 +303,7 @@ def main() -> None:
     activate_runtime(root, target)
     remove_stale_runtimes(root, target)
 
-    print(f'OpenCL MNN runtime installed in {target}')
+    print(f'{BACKEND} MNN runtime installed in {target}')
     print('Restart the app, or click Retry setup in Diagnostics.')
 
 

@@ -33,6 +33,9 @@ dev = [
     { name = "pyright" },
     { name = "ruff" },
 ]
+macos-build = [
+    { name = "nuitka" },
+]
 windows-build = [
     { name = "nuitka" },
 ]
@@ -53,6 +56,7 @@ dev = [
     { name = "pyright", specifier = ">=1.1.414" },
     { name = "ruff", specifier = ">=0.17.5" },
 ]
+macos-build = [{ name = "nuitka", specifier = "==4.3.5" }]
 windows-build = [{ name = "nuitka", specifier = "==4.3.5" }]
 
 [[package]]

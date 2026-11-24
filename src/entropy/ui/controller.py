@@ -10,6 +10,7 @@ from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from entropy.logic.image_queue import preview_url
+from entropy.paths import uses_macos_sandbox
 from entropy.ui.preview import image_aspect
 
 if TYPE_CHECKING:
@@ -175,6 +176,10 @@ class AppController(QObject):
     outputDirectory = Property(
         str, _output_directory, _set_output_directory, notify=settingsChanged
     )
+
+    @Property(bool, constant=True)
+    def outputFolderOnly(self) -> bool:
+        return uses_macos_sandbox()
 
     def _output_scale(self) -> float:
         return self.app.session.output_scale

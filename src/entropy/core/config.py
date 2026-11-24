@@ -44,6 +44,7 @@ class UpscaleRequest(BaseModel):
     tile_size: int = Field(default=128, ge=16, le=1024)
     padding: int = Field(default=16, ge=0, le=128)
     job_id: UUID = Field(default_factory=uuid4)
+    sandbox_bookmarks: tuple[str, ...] = ()
 
     @property
     def staging_path(self) -> Path:

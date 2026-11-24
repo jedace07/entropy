@@ -30,7 +30,9 @@ from entropy.core.events import (
     encode,
 )
 from entropy.core.imaging import load_image, save_output, upscale_image
+from entropy.core.macos_sandbox import check_sandbox_write_denied, resolve_bookmarks
 from entropy.core.models import ensure_default_model
+from entropy.paths import uses_macos_sandbox
 from entropy.worker.engine import MnnRunner, gpu_available, import_mnn
 
 if TYPE_CHECKING:
@@ -38,7 +40,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-USAGE = 'Expected --probe, --prepare, or --job with the request JSON on stdin.'
+USAGE = 'Expected --probe, --prepare, --check-bundle, or --job with the request JSON on stdin.'
 
 
 def emit(event: WorkerEvent) -> None:
@@ -130,9 +132,20 @@ def run(arguments: list[str]) -> int:
             probe_runtime()
             return 0
 
+        case ['--check-bundle'] if uses_macos_sandbox():
+            check_sandbox_write_denied()
+            ensure_default_model()
+            import_mnn()
+            emit(ModelReady())
+            return 0
+
         # The request arrives on stdin, which has no length limit unlike argv
         case ['--job']:
-            return run_batch(UpscaleRequest.model_validate_json(sys.stdin.buffer.read()))
+            request = UpscaleRequest.model_validate_json(sys.stdin.buffer.read())
+            if uses_macos_sandbox():
+                with resolve_bookmarks(request.sandbox_bookmarks):
+                    return run_batch(request)
+            return run_batch(request)
 
         case _:
             raise ValueError(USAGE)

@@ -11,10 +11,10 @@ import subprocess
 import sys
 from configparser import ConfigParser
 from datetime import UTC, datetime
-from importlib.metadata import distributions
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from package_assets import COMPONENT, ENTRY_POINT, copy_dependency_licenses
 from PIL import Image
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage, QPainter
@@ -25,20 +25,8 @@ from entropy.paths import runtime_root
 from entropy.version import application_version
 from entropy.worker.runtime import activate_local_runtime
 
-COMPONENT = 'io.github.jedace07.Entropy'
-
 # Windows picks the closest of these for the taskbar, title bar and shortcuts
 ICON_SIZES = (16, 24, 32, 48, 64, 128, 256)
-
-# The script Nuitka compiles into Entropy.exe
-ENTRY_POINT = '''\
-"""Compiled Entropy entry point."""
-
-from entropy.__main__ import main
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-'''
 
 
 def create_icon(source: Path, destination: Path) -> None:
@@ -58,38 +46,6 @@ def create_icon(source: Path, destination: Path) -> None:
     Image.frombytes('RGBA', (256, 256), bytes(image.bits())).save(
         destination, sizes=[(size, size) for size in ICON_SIZES]
     )
-
-
-def _is_license_file(parts: tuple[str, ...], name: str) -> bool:
-    """Whether a distribution file is a license, a notice, or the package metadata."""
-    return (
-        any(part.lower() in {'license', 'licenses'} for part in parts)
-        or name.lower().startswith(('license', 'copying', 'notice'))
-        or name == 'METADATA'
-    )
-
-
-def copy_dependency_licenses(destination: Path) -> None:
-    """Preserve installed dependencies' license and notice files in the payload."""
-    for distribution in distributions():
-        for entry in distribution.files or ():
-            # Paths outside the distribution's own folder are not its license files
-            if '..' in entry.parts or not _is_license_file(entry.parts, entry.name):
-                continue
-
-            # locate_file() is typed as a minimal path protocol, it is a real path here
-            source = Path(str(distribution.locate_file(entry)))
-            if source.is_file():
-                target = destination / distribution.metadata['Name'] / entry
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, target)
-
-    # The interpreter is bundled too, so its license comes along
-    for license_file in Path(sys.base_prefix).glob('LICENSE*'):
-        if license_file.is_file():
-            target = destination / 'Python' / license_file.name
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(license_file, target)
 
 
 def write_deploy_spec(staging: Path) -> Path:

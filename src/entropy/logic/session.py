@@ -24,8 +24,10 @@ from entropy.core.events import (
     WorkerEvent,
 )
 from entropy.core.imaging import SUPPORTED_SUFFIXES
+from entropy.core.macos_sandbox import share_job_paths
 from entropy.core.models import DEFAULT_PROFILE
 from entropy.logic.image_queue import EntryState, ImageQueue, QueueEntry
+from entropy.paths import uses_macos_sandbox
 
 if TYPE_CHECKING:
     from entropy.application import Entropy
@@ -92,8 +94,16 @@ class Session(QObject):
         """Restore preferences, replacing anything out of range with its default."""
         settings = self.app.settings
 
-        pictures = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.PicturesLocation)
-        self._output = settings.get('output', str(Path(pictures or Path.home()) / 'Upscaled'))
+        if uses_macos_sandbox():
+            container_data = QStandardPaths.writableLocation(
+                QStandardPaths.StandardLocation.AppLocalDataLocation
+            )
+            self._output = str(Path(container_data) / 'Upscaled')
+        else:
+            pictures = QStandardPaths.writableLocation(
+                QStandardPaths.StandardLocation.PicturesLocation
+            )
+            self._output = settings.get('output', str(Path(pictures or Path.home()) / 'Upscaled'))
 
         tile = settings.get('tileSize', DEFAULT_TILE_SIZE)
         self._tile = tile if tile in TILE_SIZES else DEFAULT_TILE_SIZE
@@ -107,7 +117,8 @@ class Session(QObject):
     def save_settings(self) -> None:
         """Persist the user's preferences."""
         settings = self.app.settings
-        settings.set('output', self._output)
+        if not uses_macos_sandbox():
+            settings.set('output', self._output)
         settings.set('tileSize', self._tile)
         settings.set('padding', self._padding)
         settings.set('outputScale', self._output_scale)
@@ -278,13 +289,17 @@ class Session(QObject):
 
         # Resolving the output folder or validating the request can still fail here
         try:
+            images = tuple(entry.path for entry in self.queue.entries)
+            output = self.output_path
+            bookmarks = share_job_paths(images, output) if uses_macos_sandbox() else ()
             request = UpscaleRequest(
-                images=tuple(entry.path for entry in self.queue.entries),
-                output_dir=self.output_path,
+                images=images,
+                output_dir=output,
                 profile=DEFAULT_PROFILE,
                 output_scale=self._output_scale,
                 tile_size=self._tile,
                 padding=self._padding,
+                sandbox_bookmarks=bookmarks,
             )
         except (OSError, ValueError) as exc:
             self.report_error(str(exc))

@@ -9,10 +9,9 @@ finish-args:
   - --socket=fallback-x11
   - --share=ipc
   - --device=dri
-  - --filesystem=home:rw
-  - --filesystem=/mnt:rw
-  - --filesystem=/media:rw
-  - --filesystem=/run/media:rw
+  # Images and other output folders come through the file chooser portal and
+  # drag and drop, so only the default output folder needs direct access
+  - --filesystem=xdg-pictures/Upscaled:create
   - --env=ENTROPY_MODEL_DIR=/app/share/entropy/models
   - --env=OCL_ICD_VENDORS=/app/etc/OpenCL/vendors
 
@@ -89,6 +88,7 @@ modules:
       - install -Dm644 src/entropy/licenses/Real-ESRGAN.txt /app/share/entropy/models/realesr-general-x4v3-4a8999e30500.license.txt
       - install -Dm644 LICENSE /app/share/licenses/entropy/LICENSE
       - install -Dm644 flatpak/io.github.jedace07.Entropy.desktop /app/share/applications/io.github.jedace07.Entropy.desktop
+      - install -Dm644 flatpak/io.github.jedace07.Entropy.metainfo.xml /app/share/metainfo/io.github.jedace07.Entropy.metainfo.xml
       - install -Dm644 flatpak/io.github.jedace07.Entropy.svg /app/share/icons/hicolor/scalable/apps/io.github.jedace07.Entropy.svg
     sources:
       - type: dir

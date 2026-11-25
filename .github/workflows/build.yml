@@ -78,6 +78,19 @@ jobs:
         with:
           persist-credentials: false
 
+      # Updating the runtimes baked into the image renames files across overlay layers,
+      # which fails with "Invalid cross-device link" on some runners
+      - name: Lint the manifest and MetaInfo with Flathub's linter
+        run: |
+          flatpak-builder-lint --exceptions manifest flatpak/io.github.jedace07.Entropy.yaml
+          flatpak-builder-lint --exceptions appstream flatpak/io.github.jedace07.Entropy.metainfo.xml
+
+      - name: Move the Flatpak installation off the container overlay
+        run: |
+          mkdir -p "$RUNNER_TEMP/flatpak"
+          cp -a /var/lib/flatpak/. "$RUNNER_TEMP/flatpak/"
+          mount --bind "$RUNNER_TEMP/flatpak" /var/lib/flatpak
+
       - name: Build Flatpak bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
@@ -87,6 +100,11 @@ jobs:
           build-dir: flatpak-build
           repo-dir: flatpak-repo
           artifact-name: flatpak-x86_64
+          # Flathub serves screenshots from its own mirror, and the linter expects them in the repo
+          mirror-screenshots-url: https://dl.flathub.org/media
+
+      - name: Lint the build with Flathub's linter
+        run: flatpak-builder-lint --exceptions repo flatpak-repo
 
   windows:
     needs: prepare

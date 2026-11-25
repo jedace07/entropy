@@ -202,10 +202,20 @@ single-file bundle after building:
 flatpak build-bundle flatpak-repo entropy.flatpak io.github.jedace07.Entropy
 ```
 
-Filesystem access is read/write for the home directory, `/mnt`, `/media`, and
-`/run/media`. Other permissions are limited to GPU rendering and compute,
-Wayland, fallback X11, and shared IPC for X11. File pickers and opening output
-folders use portals. The sandbox has no network, audio, unrestricted device,
+`flatpak/io.github.jedace07.Entropy.metainfo.xml` holds the AppStream metadata
+shown by software centers. Add a `<release>` entry to it for each version bump.
+Check it and the built repository with Flathub's linter:
+
+```bash
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream flatpak/io.github.jedace07.Entropy.metainfo.xml
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo flatpak-repo
+```
+
+The only direct filesystem access is the default output folder,
+`~/Pictures/Upscaled`. Images and other output folders are granted through the
+file chooser portal or by dragging them in from a file manager, and opening the
+output folder also uses a portal. Other permissions are limited to GPU rendering
+and compute, Wayland, fallback X11, and shared IPC for X11. The sandbox has no network, audio, unrestricted device,
 or unrestricted D-Bus permissions. The bundled model makes offline startup
 and processing possible without a host Python environment or a user-built MNN
 runtime. Host GPU drivers must still be available through Flatpak's graphics
@@ -230,7 +240,10 @@ uv version --bump alpha
 uv version --bump stable
 ```
 
-Commit and push the bump, then run **Build draft release** from the Actions tab.
+Add a matching `<release>` entry to the top of
+`flatpak/io.github.jedace07.Entropy.metainfo.xml`, writing prereleases as
+`0.4.0~alpha.1` so software centers order them before `0.4.0`. Commit and push
+the bump, then run **Build draft release** from the Actions tab.
 It builds all three packages and creates a draft GitHub release for that commit with
 generated release notes. Review the draft and publish it, which creates the tag.
 Release tags spell prereleases out, so `0.4.0a1` becomes `v0.4.0-alpha.1` and is

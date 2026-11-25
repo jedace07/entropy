@@ -8,8 +8,7 @@ Downloads for the current version are on the
 [releases page](https://github.com/jedace07/entropy/releases).
 
 The runtime automatically selects Metal on macOS and OpenCL on Linux and Windows;
-backend selection is internal. The macOS package targets Apple silicon and can
-be built for testing from GitHub Actions, not as a public release.
+backend selection is internal. The macOS package targets Apple silicon.
 
 ## Run
 
@@ -232,7 +231,7 @@ uv version --bump stable
 ```
 
 Commit and push the bump, then run **Build draft release** from the Actions tab.
-It builds both packages and creates a draft GitHub release for that commit with
+It builds all three packages and creates a draft GitHub release for that commit with
 generated release notes. Review the draft and publish it, which creates the tag.
 Release tags spell prereleases out, so `0.4.0a1` becomes `v0.4.0-alpha.1` and is
 marked as a GitHub prerelease, while `0.4.0` becomes `v0.4.0` and is a stable
@@ -246,10 +245,11 @@ Build artifacts:
 - `entropy-windows-x86_64-setup.exe` for Windows, an offline Qt Installer Framework
   installer containing the standalone application, dependencies, the OpenCL
   runtime, the enhancement model and license texts.
-- `entropy-macos-arm64-testing.zip` for Apple silicon, an ad hoc signed test
-  package from **Build packages** only.
+- `entropy-macos-arm64.zip` for Apple silicon, a sandboxed `Entropy.app` signed
+  with Developer ID and notarized. Without signing secrets the job instead makes
+  `entropy-macos-arm64-testing.zip`, which is ad hoc signed.
 
-Both builds must succeed before **Build draft release** creates the draft
+All builds must succeed before **Build draft release** creates the draft
 release. Run **Build packages** manually from the Actions tab to download build
 artifacts without creating a release. Ordinary pushes and pull requests do not
 run a workflow.
@@ -300,7 +300,7 @@ Install a downloaded Flatpak with:
 flatpak install --user entropy-x86_64.flatpak
 ```
 
-## macOS testing build
+## macOS build
 
 On an Apple silicon Mac, install Xcode, uv, Git, CMake, and Ninja. Use a native
 arm64 Python, not a Rosetta shell. Build the Metal runtime and package the app:
@@ -334,7 +334,16 @@ uv run --locked --no-dev --group macos-build python scripts/package_macos.py \
 ```
 
 This produces `dist/entropy-macos-arm64.zip` after notarization and stapling.
-The draft-release workflow does not publish macOS artifacts.
+
+GitHub Actions signs and notarizes when these repository secrets are set. With
+none of them set, it builds the ad hoc testing archive instead:
+
+- `MACOS_CERTIFICATE`: the Developer ID Application certificate and private key,
+  exported as a `.p12` file and base64 encoded (`base64 -i certificate.p12`).
+- `MACOS_CERTIFICATE_PASSWORD`: the password of that `.p12` file.
+- `APPLE_API_KEY`: the contents of an App Store Connect API key (`.p8`) with the
+  Developer role, used by `notarytool`.
+- `APPLE_API_KEY_ID` and `APPLE_API_ISSUER`: that key's ID and issuer ID.
 
 ## Development
 

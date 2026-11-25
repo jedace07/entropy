@@ -30,25 +30,17 @@ Rectangle {
                 color: Theme.accent
             }
         }
-        ColumnLayout {
-            spacing: 1
-            RowLayout {
-                spacing: 10
-                Label {
-                    text: qsTr("Entropy")
-                    color: Theme.text
-                    font.pointSize: Theme.heading
-                    font.weight: Font.DemiBold
-                }
-                Label {
-                    objectName: "appVersionLabel"
-                    text: qsTr("v%1").arg(Qt.application.version)
-                    color: Theme.muted
-                    font.pointSize: Theme.caption
-                }
+        RowLayout {
+            spacing: 10
+            Label {
+                text: qsTr("Entropy")
+                color: Theme.text
+                font.pointSize: Theme.heading
+                font.weight: Font.DemiBold
             }
             Label {
-                text: qsTr("A closer look, a clearer image.")
+                objectName: "appVersionLabel"
+                text: qsTr("v%1").arg(Qt.application.version)
                 color: Theme.muted
                 font.pointSize: Theme.caption
             }

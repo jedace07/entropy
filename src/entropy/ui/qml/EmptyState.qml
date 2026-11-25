@@ -23,7 +23,7 @@ ColumnLayout {
     }
     Label {
         Layout.fillWidth: true
-        text: qsTr("More detail starts here.")
+        text: qsTr("No images added")
         color: Theme.text
         font.pointSize: Theme.title
         font.weight: Font.Medium
@@ -32,7 +32,7 @@ ColumnLayout {
     }
     Label {
         Layout.fillWidth: true
-        text: qsTr("Drop your images here, or choose them from your device.")
+        text: qsTr("Drop images here or choose files to upscale.")
         color: Theme.muted
         font.pointSize: Theme.body
         horizontalAlignment: Text.AlignHCenter

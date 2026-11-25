@@ -55,7 +55,7 @@ Rectangle {
             }
             Label {
                 Layout.fillWidth: true
-                text: qsTr("PNG output. Your originals and existing files are always preserved.")
+                text: qsTr("Saved as PNG. Existing files are never overwritten.")
                 color: Theme.muted
                 font.pointSize: Theme.caption
                 wrapMode: Text.WordWrap

@@ -13,7 +13,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         SectionLabel {
-            text: qsTr("YOUR IMAGES · %1").arg(root.controller.queueCount)
+            text: qsTr("IMAGES · %1").arg(root.controller.queueCount)
         }
         Item {
             Layout.fillWidth: true

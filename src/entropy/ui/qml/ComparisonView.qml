@@ -21,7 +21,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             SectionLabel {
-                text: qsTr("WORKSPACE")
+                text: qsTr("PREVIEW")
             }
             Item {
                 Layout.fillWidth: true
@@ -130,21 +130,6 @@ Rectangle {
                 text: qsTr("Result · %1×").arg(Number(root.controller.resultScale).toLocaleString(
                                                    Qt.locale(), 'g', 3))
                 color: Theme.accent
-                font.pointSize: Theme.caption
-            }
-        }
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            visible: !root.hasResult
-            spacing: 7
-            Icon {
-                name: "shield"
-                implicitWidth: 16
-                implicitHeight: 16
-            }
-            Label {
-                text: qsTr("Your images stay on your device.")
-                color: Theme.muted
                 font.pointSize: Theme.caption
             }
         }

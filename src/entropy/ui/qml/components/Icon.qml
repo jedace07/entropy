@@ -13,7 +13,6 @@ Item {
                                       "image": "M3 3h18v18H3zM3 17l6-6 5 5 3-3 4 4M8 7h.01",
                                       "trash": "M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7",
                                       "check": "m5 12 4 4L19 6",
-                                      "shield": "M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3zm-4 9 3 3 5-6",
                                       "settings": "M4 7h16M4 17h16M8 4v6m8 4v6",
                                       "refresh":
                                       "M20 7v5h-5M4 17v-5h5m-5 0a8 8 0 0 1 14-5l2 5M4 12l2 5a8 8 0 0 0 14-5",

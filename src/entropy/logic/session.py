@@ -84,7 +84,7 @@ class Session(QObject):
         # What the interface shows
         self.selected = -1
         self.has_error = False
-        self.status = self.tr('Ready when you are')
+        self.status = self.tr('Ready')
         self.model_status = self.tr('Installs automatically · 4.9 MB')
         self.logs: list[str] = []
 
@@ -277,7 +277,7 @@ class Session(QObject):
         self.preparing = True
         self._terminal_event = False
         self.has_error = False
-        self.status = self.tr('Preparing your workspace…')
+        self.status = self.tr('Setting up…')
 
         self.app.worker.start('prepare')
         self.stateChanged.emit()
@@ -320,7 +320,7 @@ class Session(QObject):
         self.status = (
             self.tr('Resizing images…')
             if request.output_scale <= 1
-            else self.tr('Warming up the GPU…')
+            else self.tr('Loading the model…')
         )
         self._start_time = time.monotonic()
 
@@ -340,9 +340,7 @@ class Session(QObject):
                 self.model_status = self.tr('Downloading… {percent}%').format(
                     percent=round(self.progress * 100)
                 )
-                self.status = self.tr(
-                    'Installing your enhancement model. This only downloads once.'
-                )
+                self.status = self.tr('Downloading the enhancement model…')
 
             case ModelReady():
                 self.model_ready = True
@@ -400,7 +398,7 @@ class Session(QObject):
         self.log(f'GPU runtime: {"ready" if available else "unavailable"}')
 
         if available:
-            self.status = self.tr('Ready when you are')
+            self.status = self.tr('Ready')
         else:
             self._set_error(self.tr('GPU setup is required. Open diagnostics for details.'))
             self.log('Build the GPU runtime: uv run python scripts/build_mnn.py')
@@ -414,9 +412,9 @@ class Session(QObject):
 
         if cancelled:
             self.status = (
-                self.tr('Setup cancelled. Retry when you’re ready.')
+                self.tr('Setup cancelled')
                 if self.preparing
-                else self.tr('Cancelled. Your completed images are saved.')
+                else self.tr('Cancelled. Finished images were saved.')
             )
         elif not self._terminal_event:
             self._set_error(self.tr('The worker stopped unexpectedly. See diagnostics.'))

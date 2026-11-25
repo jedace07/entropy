@@ -24,19 +24,33 @@ from entropy.version import application_version
 from entropy.worker.runtime import activate_local_runtime
 
 PROJECT = Path(__file__).resolve().parents[1]
+ICON_SIZES = (16, 32, 128, 256, 512)
 logger = logging.getLogger(__name__)
 
 
 def render_icon(destination: Path) -> None:
     renderer = QSvgRenderer(str(PROJECT / 'flatpak' / f'{COMPONENT}.svg'))
-    pixels = QImage(512, 512, QImage.Format.Format_RGBA8888)
-    pixels.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixels)
-    renderer.render(painter)
-    painter.end()
-    if not renderer.isValid() or not pixels.save(str(destination)):
+    if not renderer.isValid():
         msg = 'Could not render the macOS application icon.'
         raise RuntimeError(msg)
+
+    # Nuitka only takes an icns icon as is, so build one from every standard size
+    iconset = destination.with_suffix('.iconset')
+    iconset.mkdir()
+    for size in ICON_SIZES:
+        for scale, suffix in ((1, ''), (2, '@2x')):
+            pixels = QImage(size * scale, size * scale, QImage.Format.Format_RGBA8888)
+            pixels.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixels)
+            renderer.render(painter)
+            painter.end()
+            if not pixels.save(str(iconset / f'icon_{size}x{size}{suffix}.png')):
+                msg = 'Could not render the macOS application icon.'
+                raise RuntimeError(msg)
+    subprocess.run(
+        ['/usr/bin/iconutil', '--convert', 'icns', '--output', str(destination), str(iconset)],
+        check=True,
+    )
 
 
 def compile_bundle(staging: Path, native: Path) -> Path:
@@ -45,7 +59,7 @@ def compile_bundle(staging: Path, native: Path) -> Path:
         PROJECT / 'src' / 'entropy', source, ignore=shutil.ignore_patterns('__pycache__')
     )
     (staging / 'Entropy.py').write_text(ENTRY_POINT, encoding='utf-8')
-    icon = staging / 'Entropy.png'
+    icon = staging / 'Entropy.icns'
     render_icon(icon)
     ensure_default_model(directory=staging / 'models')
     notices = staging / 'notices'

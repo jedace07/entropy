@@ -87,6 +87,9 @@ def compile_bundle(staging: Path, native: Path) -> Path:
             '--include-data-dir=entropy/ui/qml=entropy/ui/qml',
             '--include-data-dir=models=models',
             '--include-data-dir=notices=notices',
+            # The default executable name, Entropy, clashes with the entropy package folder
+            # beside it on case-insensitive file systems
+            '--output-filename=EntropyApp',
             '--macos-app-name=Entropy',
             f'--macos-app-icon={icon}',
             f'--macos-app-version={version}',

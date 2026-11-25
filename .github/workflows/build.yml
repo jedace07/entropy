@@ -89,7 +89,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/flatpak"
           cp -a /var/lib/flatpak/. "$RUNNER_TEMP/flatpak/"
-          mount --bind "$RUNNER_TEMP/flatpak" /var/lib/flatpak
+          echo "FLATPAK_SYSTEM_DIR=$RUNNER_TEMP/flatpak" >> "$GITHUB_ENV"
 
       - name: Build Flatpak bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6

@@ -60,6 +60,10 @@ jobs:
           python-version: "3.14"
           enable-cache: true
 
+      # Qt needs the EGL and GL loaders even when rendering offscreen
+      - name: Install Qt runtime libraries
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxkbcommon0 libfontconfig1
+
       - name: Smoke test without hardware acceleration
         run: uv run --locked --no-dev python scripts/smoke_test.py
 
@@ -134,8 +138,6 @@ jobs:
     env:
       UV_NO_EDITABLE: '1'
       HOMEBREW_NO_AUTO_UPDATE: '1'
-      # Without a certificate the build is ad hoc signed for testing
-      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -151,63 +153,16 @@ jobs:
 
       - run: uv sync --locked --no-dev --group macos-build
 
-      - name: Import signing and notarization credentials
-        if: env.MACOS_CERTIFICATE != ''
-        env:
-          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-        run: |
-          for name in MACOS_CERTIFICATE_PASSWORD APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER; do
-            if [ -z "${!name}" ]; then
-              echo "::error::MACOS_CERTIFICATE is set, so $name is required too."
-              exit 1
-            fi
-          done
-
-          # A throwaway keychain, made the default so codesign and notarytool both find it
-          keychain="$RUNNER_TEMP/signing.keychain-db"
-          password="$(uuidgen)"
-          security create-keychain -p "$password" "$keychain"
-          security set-keychain-settings -lut 21600 "$keychain"
-          security unlock-keychain -p "$password" "$keychain"
-          security list-keychains -d user -s "$keychain"
-          security default-keychain -s "$keychain"
-
-          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
-          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
-            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          rm "$RUNNER_TEMP/certificate.p12"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
-
-          printf '%s' "$APPLE_API_KEY" > "$RUNNER_TEMP/notary.p8"
-          xcrun notarytool store-credentials entropy --key "$RUNNER_TEMP/notary.p8" \
-            --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER"
-          rm "$RUNNER_TEMP/notary.p8"
-
-          identity="$(security find-identity -v -p codesigning "$keychain" \
-            | grep -o '"Developer ID Application: [^"]*"' | head -n 1 | tr -d '"')"
-          if [ -z "$identity" ]; then
-            echo "::error::MACOS_CERTIFICATE has no Developer ID Application identity."
-            exit 1
-          fi
-          echo "MACOS_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
-
       - name: Build Metal runtime
         run: uv run --locked --no-dev --group macos-build python scripts/build_mnn.py --jobs 3
 
       - name: Package and check the sandboxed application
-        run: |
-          if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
-            set -- --sign-identity "$MACOS_SIGN_IDENTITY" --notary-profile entropy
-          fi
-          uv run --locked --no-dev --group macos-build python scripts/package_macos.py "$@"
+        run: uv run --locked --no-dev --group macos-build python scripts/package_macos.py
 
       - uses: actions/upload-artifact@v7
         with:
           name: macos-arm64
-          path: dist/entropy-macos-arm64*.zip
+          path: dist/entropy-macos-arm64.zip
           if-no-files-found: error
           compression-level: 0
 

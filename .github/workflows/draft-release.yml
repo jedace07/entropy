@@ -11,7 +11,6 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       release: true
-    secrets: inherit
 
   draft-release:
     needs: build
@@ -35,5 +34,5 @@ jobs:
           files: |
             release/entropy-x86_64.flatpak
             release/entropy-windows-x86_64-setup.exe
-            release/entropy-macos-arm64*.zip
+            release/entropy-macos-arm64.zip
           fail_on_unmatched_files: true

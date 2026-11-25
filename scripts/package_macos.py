@@ -1,9 +1,8 @@
-"""Build a sandboxed Apple silicon app and optionally notarize it for distribution."""
+"""Build a sandboxed, ad hoc signed Apple silicon app."""
 
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import os
 import platform
@@ -40,7 +39,7 @@ def render_icon(destination: Path) -> None:
         raise RuntimeError(msg)
 
 
-def compile_bundle(staging: Path, native: Path, identity: str) -> Path:
+def compile_bundle(staging: Path, native: Path) -> Path:
     source = staging / 'entropy'
     shutil.copytree(
         PROJECT / 'src' / 'entropy', source, ignore=shutil.ignore_patterns('__pycache__')
@@ -77,8 +76,7 @@ def compile_bundle(staging: Path, native: Path, identity: str) -> Path:
             '--macos-app-name=Entropy',
             f'--macos-app-icon={icon}',
             f'--macos-app-version={version}',
-            f'--macos-sign-identity={identity}',
-            *(['--macos-sign-notarization'] if identity != '-' else []),
+            '--macos-sign-identity=-',
             f'--output-dir={output}',
             'Entropy.py',
         ],
@@ -89,7 +87,7 @@ def compile_bundle(staging: Path, native: Path, identity: str) -> Path:
     return output / 'Entropy.app'
 
 
-def sign_bundle(bundle: Path, identity: str) -> Path:
+def sign_bundle(bundle: Path) -> Path:
     contents = bundle / 'Contents'
     info_path = contents / 'Info.plist'
     with info_path.open('rb') as stream:
@@ -103,9 +101,7 @@ def sign_bundle(bundle: Path, identity: str) -> Path:
     worker = executable.with_name(MACOS_WORKER)
     shutil.copy2(executable, worker)
     entitlements = PROJECT / 'packaging' / 'macos'
-    command = ['/usr/bin/codesign', '--force', '--sign', identity]
-    if identity != '-':
-        command.extend(('--timestamp', '--options', 'runtime'))
+    command = ['/usr/bin/codesign', '--force', '--sign', '-']
     subprocess.run(
         [
             *command,
@@ -149,48 +145,11 @@ def check_bundle(executable: Path) -> None:
         )
 
 
-def notarize(bundle: Path, archive: Path, profile: str) -> None:
-    result = subprocess.run(
-        [
-            'xcrun',
-            'notarytool',
-            'submit',
-            str(archive),
-            '--keychain-profile',
-            profile,
-            '--wait',
-            '--output-format',
-            'json',
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    submission = json.loads(result.stdout)
-    if submission.get('status') != 'Accepted':
-        msg = f'Apple did not accept the notarization submission: {submission}'
-        raise RuntimeError(msg)
-    subprocess.run(['xcrun', 'stapler', 'staple', str(bundle)], check=True)
-    subprocess.run(['xcrun', 'stapler', 'validate', str(bundle)], check=True)
-    archive.unlink()
-    write_archive(bundle, archive)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--sign-identity', default='-', help='Developer ID Application identity')
-    parser.add_argument('--notary-profile', help='notarytool keychain profile for a public build')
-    args = parser.parse_args()
+    parser.parse_args()
     if sys.platform != 'darwin' or platform.machine() != 'arm64':
         parser.error('Use a native arm64 Python on an Apple silicon Mac.')
-    identity = str(args.sign_identity)
-    profile = str(args.notary_profile) if args.notary_profile else None
-    if identity != '-' and (not identity.startswith('Developer ID Application: ') or not profile):
-        parser.error(
-            'For distribution, provide a Developer ID Application identity and --notary-profile.'
-        )
-    if identity == '-' and profile:
-        parser.error('Notarization requires a Developer ID Application identity.')
 
     metadata = activate_local_runtime()
     if metadata is None or metadata.get('compiled_backends') != ['Metal']:
@@ -198,15 +157,13 @@ def main() -> None:
     native = (runtime_root() / str(metadata['directory'])).resolve()
     dist = PROJECT / 'dist'
     dist.mkdir(exist_ok=True)
-    filename = 'entropy-macos-arm64.zip' if profile else 'entropy-macos-arm64-testing.zip'
+    filename = 'entropy-macos-arm64.zip'
     with TemporaryDirectory(prefix='entropy-macos-', dir=dist) as directory:
         staging = Path(directory)
-        bundle = compile_bundle(staging, native, identity)
-        check_bundle(sign_bundle(bundle, identity))
+        bundle = compile_bundle(staging, native)
+        check_bundle(sign_bundle(bundle))
         archive = staging / filename
         write_archive(bundle, archive)
-        if profile:
-            notarize(bundle, archive, profile)
         archive.replace(dist / filename)
     logger.info('Created %s', dist / filename)
 

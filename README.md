@@ -245,9 +245,8 @@ Build artifacts:
 - `entropy-windows-x86_64-setup.exe` for Windows, an offline Qt Installer Framework
   installer containing the standalone application, dependencies, the OpenCL
   runtime, the enhancement model and license texts.
-- `entropy-macos-arm64.zip` for Apple silicon, a sandboxed `Entropy.app` signed
-  with Developer ID and notarized. Without signing secrets the job instead makes
-  `entropy-macos-arm64-testing.zip`, which is ad hoc signed.
+- `entropy-macos-arm64.zip` for Apple silicon, a sandboxed, ad hoc signed
+  `Entropy.app` with the Metal runtime and the enhancement model.
 
 All builds must succeed before **Build draft release** creates the draft
 release. Run **Build packages** manually from the Actions tab to download build
@@ -300,6 +299,16 @@ Install a downloaded Flatpak with:
 flatpak install --user entropy-x86_64.flatpak
 ```
 
+On macOS, unzip `entropy-macos-arm64.zip` and move `Entropy.app` to
+Applications. The app is ad hoc signed rather than notarized by Apple, so
+Gatekeeper blocks the first launch. Open it once, then choose **Open Anyway** in
+**System Settings → Privacy & Security**. Alternatively, clear the download
+quarantine from a terminal:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Entropy.app
+```
+
 ## macOS build
 
 On an Apple silicon Mac, install Xcode, uv, Git, CMake, and Ninja. Use a native
@@ -311,7 +320,7 @@ uv run --locked --no-dev --group macos-build python scripts/build_mnn.py --jobs 
 uv run --locked --no-dev --group macos-build python scripts/package_macos.py
 ```
 
-The script creates `dist/entropy-macos-arm64-testing.zip` with `Entropy.app`,
+The script creates `dist/entropy-macos-arm64.zip` with `Entropy.app`,
 the Metal runtime, and a verified model. The app and its worker use App Sandbox.
 The app has no network entitlement and gives the worker temporary access to the
 selected images and output folder for each batch. The output defaults to a folder
@@ -323,27 +332,6 @@ and that neither process can write to an unselected file. On a real Mac, use the
 native pickers to select an image and an output folder outside the app container.
 Run a 0.5× resize to test access, then a 2× upscale to test Metal. Confirm the
 results are saved to the chosen folder and can be previewed in the app.
-
-The ad hoc archive is for testing and may be blocked by Gatekeeper when downloaded.
-For a distribution build, install a **Developer ID Application** certificate and
-set up an `xcrun notarytool` keychain profile. Pass both to the package script:
-
-```bash
-uv run --locked --no-dev --group macos-build python scripts/package_macos.py \
-  --sign-identity 'Developer ID Application: NAME (TEAMID)' --notary-profile entropy
-```
-
-This produces `dist/entropy-macos-arm64.zip` after notarization and stapling.
-
-GitHub Actions signs and notarizes when these repository secrets are set. With
-none of them set, it builds the ad hoc testing archive instead:
-
-- `MACOS_CERTIFICATE`: the Developer ID Application certificate and private key,
-  exported as a `.p12` file and base64 encoded (`base64 -i certificate.p12`).
-- `MACOS_CERTIFICATE_PASSWORD`: the password of that `.p12` file.
-- `APPLE_API_KEY`: the contents of an App Store Connect API key (`.p8`) with the
-  Developer role, used by `notarytool`.
-- `APPLE_API_KEY_ID` and `APPLE_API_ISSUER`: that key's ID and issuer ID.
 
 ## Development
 

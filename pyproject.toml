@@ -27,7 +27,7 @@ mnn = ["MNN>=3.6.2,<4"]
 [dependency-groups]
 dev = [
     "pyright>=1.1.414",
-    "ruff>=0.17.5",
+    "ruff>=0.17.6",
 ]
 macos-build = [
     "nuitka==4.3.5",
